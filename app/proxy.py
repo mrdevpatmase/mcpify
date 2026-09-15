@@ -116,6 +116,19 @@ class ProxyMCPManager:
                     existing["last_used"] = now_str
                     if api_key:
                         existing["api_key"] = api_key
+                    # Refresh has_mcp too, not just last_used/api_key: the
+                    # caller (main.py) always re-runs the real handshake
+                    # check fresh before calling create_proxy, but that
+                    # freshly-computed value was being silently discarded
+                    # here in favor of whatever was cached from whenever
+                    # this record was first created - stale in exactly the
+                    # same way proxy_url was (verified live: a deepwiki
+                    # proxy created before the OAuth/406/streaming
+                    # detection fixes landed kept reporting has_mcp=False
+                    # forever after, even once the code correctly detects
+                    # it as True, because reuse never looked at the fresh
+                    # value at all).
+                    existing["has_mcp"] = has_mcp
                     # Refresh proxy_url to the CURRENT app base, not
                     # whatever it was when this record was first created -
                     # a record made under an old domain (e.g. this app
@@ -159,6 +172,7 @@ class ProxyMCPManager:
                     winner["last_used"] = now_str
                     if api_key:
                         winner["api_key"] = api_key
+                    winner["has_mcp"] = has_mcp
                     winner["proxy_url"] = f"{current_base_url}/proxy/{winner['proxy_id']}/mcp"
                     await self._redis_save_proxy(redis, winner)
                     return winner
@@ -174,6 +188,7 @@ class ProxyMCPManager:
                 proxy["last_used"] = now_str
                 if api_key:
                     proxy["api_key"] = api_key
+                proxy["has_mcp"] = has_mcp
                 proxy["proxy_url"] = f"{current_base_url}/proxy/{proxy_id}/mcp"
                 return proxy
 
