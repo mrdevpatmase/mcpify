@@ -260,6 +260,13 @@ class ProxyMCPManager:
         method = req.get("method")
         req_id = req.get("id")
         params = req.get("params", {})
+        if not isinstance(params, dict):
+            # A client sending "params" as something other than an object
+            # (a string, a list, null) used to crash with an unhandled
+            # AttributeError on the params.get(...) calls below, returning
+            # a raw HTTP 500 instead of a proper JSON-RPC error - callers
+            # expect JSON-RPC-shaped errors, not an opaque server crash.
+            params = {}
         target_url = proxy["target_url"]
 
         if method == "initialize":
@@ -345,6 +352,10 @@ class ProxyMCPManager:
         elif method == "tools/call":
             tool_name = params.get("name")
             args = params.get("arguments", {})
+            if not isinstance(args, dict):
+                # Same reasoning as the params guard above: "arguments" as
+                # a string/list/null used to crash on args.get(...) below.
+                args = {}
 
             if tool_name == "call_api":
                 endpoint = args.get("endpoint", "")
