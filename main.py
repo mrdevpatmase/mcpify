@@ -52,6 +52,17 @@ async def ping_proxy_targets_job():
         for p in proxies:
             proxy_id = p["proxy_id"]
             target_url = p["target_url"]
+
+            # Same DNS-rebinding concern as every other outbound call to
+            # target_url (see _revalidate_target_safety in app/proxy.py)
+            # but worse here: this runs unattended on a timer, forever,
+            # with no user request or attacker action needed to trigger
+            # it once a domain's DNS has been repointed since creation.
+            is_safe, reason = await is_public_url(target_url)
+            if not is_safe:
+                logger.warning("[APScheduler] Skipping ping for proxy %s - target no longer safe: %s", proxy_id, reason)
+                continue
+
             health_target = f"{target_url}/health"
             try:
                 resp = await client.get(health_target)
@@ -143,11 +154,20 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS enabled for all origins and headers
+# CORS enabled for all origins and headers - this API is stateless
+# (no cookies/browser sessions anywhere in this app; the MCP SSE
+# "session_id" is just a query-param connection handle, unrelated), so
+# allow_credentials stays False. Wildcard origins + allow_credentials=True
+# is a well-known CORS misconfiguration: browsers only permit it by
+# reflecting the caller's exact Origin back (Starlette does this
+# automatically) rather than honoring "*" literally, which would let any
+# website make credentialed requests on a visiting user's behalf the
+# moment this app ever adds cookie-based auth - not needed today, but not
+# worth leaving armed for that day either.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
