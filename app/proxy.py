@@ -100,9 +100,10 @@ class ProxyMCPManager:
                 pass
         return os.getenv("APP_URL", "http://127.0.0.1:10000").rstrip("/")
 
-    async def create_proxy(self, target_url: str, has_mcp: bool = False, api_key: Optional[str] = None) -> Dict[str, Any]:
+    async def create_proxy(self, target_url: str, has_mcp: bool = False, api_key: Optional[str] = None, request: Optional[Any] = None) -> Dict[str, Any]:
         """Create a new proxy session or return existing active proxy."""
         target_url = normalize_url(target_url)
+        current_base_url = self.get_base_app_url(request)
 
         redis = self._get_redis()
         now_str = datetime.now(timezone.utc).isoformat()
@@ -115,11 +116,21 @@ class ProxyMCPManager:
                     existing["last_used"] = now_str
                     if api_key:
                         existing["api_key"] = api_key
+                    # Refresh proxy_url to the CURRENT app base, not
+                    # whatever it was when this record was first created -
+                    # a record made under an old domain (e.g. this app
+                    # redeployed to a new Render URL, or moved to a new
+                    # account entirely, while sharing the same Redis) would
+                    # otherwise keep handing out a dead URL forever on
+                    # every reuse. Verified live: exactly this happened
+                    # migrating off a suspended Render service - every
+                    # cached proxy kept returning the old, now-dead host.
+                    existing["proxy_url"] = f"{current_base_url}/proxy/{existing['proxy_id']}/mcp"
                     await self._redis_save_proxy(redis, existing)
                     return existing
 
             proxy_id = str(uuid.uuid4())[:8]
-            proxy_url = f"{self.get_base_app_url()}/proxy/{proxy_id}/mcp"
+            proxy_url = f"{current_base_url}/proxy/{proxy_id}/mcp"
             proxy_data = {
                 "proxy_id": proxy_id,
                 "proxy_url": proxy_url,
@@ -148,6 +159,7 @@ class ProxyMCPManager:
                     winner["last_used"] = now_str
                     if api_key:
                         winner["api_key"] = api_key
+                    winner["proxy_url"] = f"{current_base_url}/proxy/{winner['proxy_id']}/mcp"
                     await self._redis_save_proxy(redis, winner)
                     return winner
                 # Winner's own record vanished somehow - fall through and
@@ -162,10 +174,11 @@ class ProxyMCPManager:
                 proxy["last_used"] = now_str
                 if api_key:
                     proxy["api_key"] = api_key
+                proxy["proxy_url"] = f"{current_base_url}/proxy/{proxy_id}/mcp"
                 return proxy
 
         proxy_id = str(uuid.uuid4())[:8]
-        proxy_url = f"{self.get_base_app_url()}/proxy/{proxy_id}/mcp"
+        proxy_url = f"{current_base_url}/proxy/{proxy_id}/mcp"
         proxy_data = {
             "proxy_id": proxy_id,
             "proxy_url": proxy_url,
