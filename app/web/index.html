@@ -1028,9 +1028,9 @@
 
         <div class="presets">
           <span class="presets-label">Try example:</span>
-          <button type="button" class="chip" onclick="fillUrl('http://127.0.0.1:10000')">Localhost (MCPify Self-Probe)</button>
-          <button type="button" class="chip" onclick="fillUrl('https://fastapi.tiangolo.com')">FastAPI Docs</button>
-          <button type="button" class="chip" onclick="fillUrl('https://httpbin.org')">httpbin.org</button>
+          <button type="button" class="chip" onclick="tryExample('http://127.0.0.1:10000')">Localhost (MCPify Self-Probe)</button>
+          <button type="button" class="chip" onclick="tryExample('https://fastapi.tiangolo.com')">FastAPI Docs</button>
+          <button type="button" class="chip" onclick="tryExample('https://httpbin.org')">httpbin.org</button>
         </div>
       </section>
 
@@ -1050,10 +1050,10 @@
             </ul>
             <div class="compat-examples">
               <span class="compat-examples-label">Try it:</span>
-              <button type="button" class="compat-example-chip" onclick="fillUrl('https://catfact.ninja')">catfact.ninja (native MCP)</button>
-              <button type="button" class="compat-example-chip" onclick="fillUrl('https://mcp.deepwiki.com')">mcp.deepwiki.com (native MCP)</button>
-              <button type="button" class="compat-example-chip" onclick="fillUrl('https://jsonplaceholder.typicode.com')">jsonplaceholder.typicode.com (REST)</button>
-              <button type="button" class="compat-example-chip" onclick="fillUrl('https://dog.ceo/api')">dog.ceo/api (REST, path-based)</button>
+              <button type="button" class="compat-example-chip" onclick="tryExample('https://catfact.ninja')">catfact.ninja (native MCP)</button>
+              <button type="button" class="compat-example-chip" onclick="tryExample('https://mcp.deepwiki.com')">mcp.deepwiki.com (native MCP)</button>
+              <button type="button" class="compat-example-chip" onclick="tryExample('https://jsonplaceholder.typicode.com')">jsonplaceholder.typicode.com (REST)</button>
+              <button type="button" class="compat-example-chip" onclick="tryExample('https://dog.ceo/api')">dog.ceo/api (REST, path-based)</button>
             </div>
           </div>
           <div class="compat-col warn">
@@ -1066,8 +1066,8 @@
             </ul>
             <div class="compat-examples">
               <span class="compat-examples-label">Try it:</span>
-              <button type="button" class="compat-example-chip" onclick="fillUrl('https://stripe.com')">stripe.com (marketing site)</button>
-              <button type="button" class="compat-example-chip" onclick="fillUrl('https://n8n.io')">n8n.io (marketing site)</button>
+              <button type="button" class="compat-example-chip" onclick="tryExample('https://stripe.com')">stripe.com (marketing site)</button>
+              <button type="button" class="compat-example-chip" onclick="tryExample('https://n8n.io')">n8n.io (marketing site)</button>
             </div>
           </div>
           <div class="compat-col no">
@@ -1080,8 +1080,8 @@
             </ul>
             <div class="compat-examples">
               <span class="compat-examples-label">Try it:</span>
-              <button type="button" class="compat-example-chip" onclick="fillUrl('http://localhost')">localhost (blocked)</button>
-              <button type="button" class="compat-example-chip" onclick="fillUrl('javascript:alert(1)')">malformed URL</button>
+              <button type="button" class="compat-example-chip" onclick="tryExample('http://localhost')">localhost (blocked)</button>
+              <button type="button" class="compat-example-chip" onclick="tryExample('javascript:alert(1)')">malformed URL</button>
             </div>
           </div>
         </div>
@@ -1229,6 +1229,15 @@
       inputEl.value = url;
       inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       inputEl.focus();
+    }
+
+    function tryExample(url) {
+      // Like fillUrl, but also runs it immediately - used by the
+      // compatibility guide's example chips so a visitor sees the real
+      // result in one click instead of "fill, then still have to find
+      // and press Generate".
+      fillUrl(url);
+      document.getElementById('mcpForm').requestSubmit();
     }
 
     async function handleGenerate(e) {
