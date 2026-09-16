@@ -62,12 +62,12 @@ class IntegrationGuideRequest(BaseModel):
 # Core Helper Logic
 # ---------------------------------------------------------
 
-async def run_analysis(url: str) -> Dict[str, Any]:
-    return await analyze_agent_url(url)
+async def run_analysis(url: str, request: Optional[Any] = None) -> Dict[str, Any]:
+    return await analyze_agent_url(url, request=request)
 
 
-async def run_generation(url: str) -> Dict[str, Any]:
-    analysis = await analyze_agent_url(url)
+async def run_generation(url: str, request: Optional[Any] = None) -> Dict[str, Any]:
+    analysis = await analyze_agent_url(url, request=request)
     configs = generate_mcp_configurations(
         url=analysis["url"],
         recommended_mcp_endpoint=analysis.get("recommended_mcp_endpoint"),
@@ -81,8 +81,8 @@ async def run_generation(url: str) -> Dict[str, Any]:
     }
 
 
-async def run_guide(url: str, platform: str = "claude_desktop") -> Dict[str, Any]:
-    analysis = await analyze_agent_url(url)
+async def run_guide(url: str, platform: str = "claude_desktop", request: Optional[Any] = None) -> Dict[str, Any]:
+    analysis = await analyze_agent_url(url, request=request)
     configs = generate_mcp_configurations(
         url=analysis["url"],
         recommended_mcp_endpoint=analysis.get("recommended_mcp_endpoint"),
@@ -252,7 +252,7 @@ async def analyze_agent_endpoint(
         raise HTTPException(status_code=400, detail="Missing required 'url' parameter.")
     
     try:
-        return await run_analysis(target_url)
+        return await run_analysis(target_url, request=request)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -272,7 +272,7 @@ async def generate_mcp_config_endpoint(
         raise HTTPException(status_code=400, detail="Missing required 'url' parameter.")
 
     try:
-        return await run_generation(target_url)
+        return await run_generation(target_url, request=request)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -282,6 +282,7 @@ async def generate_mcp_config_endpoint(
 @router.post("/guide", operation_id="get_integration_guide", summary="Get MCP Integration Guide")
 @router.get("/guide", summary="Get MCP Integration Guide (GET)")
 async def get_integration_guide_endpoint(
+    request: Request,
     payload: Optional[IntegrationGuideRequest] = None,
     url: Optional[str] = Query(None, description="The agent URL if using GET"),
     platform: PlatformEnum = Query(PlatformEnum.claude_desktop, description="Target platform")
@@ -293,7 +294,7 @@ async def get_integration_guide_endpoint(
         raise HTTPException(status_code=400, detail="Missing required 'url' parameter.")
 
     try:
-        return await run_guide(target_url, target_platform)
+        return await run_guide(target_url, target_platform, request=request)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
