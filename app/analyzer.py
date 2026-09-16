@@ -5,6 +5,7 @@ from typing import Dict, List, Any, Optional
 import httpx
 from app.proxy import proxy_manager
 from app.security import is_public_url, resolve_canonical_base, normalize_url
+from app.openapi_tools import discover_openapi_spec, parse_operations
 
 
 
@@ -472,7 +473,25 @@ async def analyze_agent_url(url: str, request: Optional[Any] = None) -> Dict[str
         proxy_url = None
         proxy_id = None
     else:
-        proxy = await proxy_manager.create_proxy(target_url=normalized_url, has_mcp=False, request=request)
+        # Same OpenAPI-discovery step main.py's /proxy/create does - this
+        # is the OTHER call site create_proxy() has (used by /generate,
+        # /analyze, /guide), and it was missed when that feature was first
+        # wired in, exactly the same way request/has_mcp staleness fixes
+        # missed this call site earlier in this same session. Best-effort:
+        # falls back to None on any failure.
+        openapi_operations = None
+        try:
+            async with httpx.AsyncClient(timeout=6.0) as spec_client:
+                spec = await discover_openapi_spec(spec_client, normalized_url)
+                if spec:
+                    openapi_operations = parse_operations(spec, normalized_url) or None
+        except Exception:
+            openapi_operations = None
+
+        proxy = await proxy_manager.create_proxy(
+            target_url=normalized_url, has_mcp=False, request=request,
+            openapi_operations=openapi_operations
+        )
         proxy_url = proxy["proxy_url"]
         proxy_id = proxy["proxy_id"]
         recommended_mcp = proxy_url
