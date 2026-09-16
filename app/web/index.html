@@ -258,7 +258,76 @@
       font-size: 0.95rem;
       font-weight: 600;
       color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .compat-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-dim);
       margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .compat-link-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 3px 9px;
+      border-radius: var(--radius-full);
+      margin-bottom: 12px;
+      width: fit-content;
+    }
+
+    .compat-link-badge.yes {
+      background: rgba(26, 127, 55, 0.1);
+      color: var(--status-green);
+    }
+
+    .compat-link-badge.limited {
+      background: rgba(154, 103, 0, 0.1);
+      color: var(--status-yellow);
+    }
+
+    .compat-link-badge.no {
+      background: rgba(207, 34, 46, 0.1);
+      color: var(--status-red);
+    }
+
+    .compat-examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .compat-examples-label {
+      width: 100%;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      margin-bottom: 2px;
+    }
+
+    .compat-example-chip {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      font-size: 0.72rem;
+      font-family: 'JetBrains Mono', monospace;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .compat-example-chip:hover {
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      background: rgba(8, 145, 168, 0.05);
     }
 
     .compat-grid {
@@ -968,31 +1037,52 @@
       <!-- Compatibility Guide -->
       <section class="compat-section">
         <div class="compat-title">What kind of links work?</div>
+        <div class="compat-subtitle">Every category below except "Won't work" still gets you a link — the real question is whether the tools behind it return real data. Click any example to try it yourself.</div>
         <div class="compat-grid">
           <div class="compat-col">
             <div class="compat-col-head">✅ Works great</div>
+            <div class="compat-link-badge yes">🔗 Link generated — fully working</div>
             <ul class="compat-list">
               <li><strong>Real MCP servers</strong> — auto-detected and connected directly, no proxy needed (Streamable HTTP or SSE transport)</li>
               <li><strong>Public REST APIs</strong> — automatically wrapped into MCP tools (call_api, get_info, health_check)</li>
               <li><strong>APIs hosted under a path</strong> — e.g. api.example.com/v1, example.com/api</li>
               <li><strong>Protected APIs with a Bearer token</strong> — pass your API key and it's forwarded automatically</li>
             </ul>
+            <div class="compat-examples">
+              <span class="compat-examples-label">Try it:</span>
+              <button type="button" class="compat-example-chip" onclick="fillUrl('https://catfact.ninja')">catfact.ninja (native MCP)</button>
+              <button type="button" class="compat-example-chip" onclick="fillUrl('https://mcp.deepwiki.com')">mcp.deepwiki.com (native MCP)</button>
+              <button type="button" class="compat-example-chip" onclick="fillUrl('https://jsonplaceholder.typicode.com')">jsonplaceholder.typicode.com (REST)</button>
+              <button type="button" class="compat-example-chip" onclick="fillUrl('https://dog.ceo/api')">dog.ceo/api (REST, path-based)</button>
+            </div>
           </div>
           <div class="compat-col warn">
             <div class="compat-col-head">⚠️ Works, with limits</div>
+            <div class="compat-link-badge limited">🔗 Link generated — may return empty results</div>
             <ul class="compat-list">
               <li><strong>Marketing / docs-only sites</strong> — a proxy still gets created, but tool calls won't return real data if there's no actual API behind it</li>
               <li><strong>Auth beyond a Bearer token</strong> — OAuth flows, custom auth headers, or cookie-based login aren't supported yet</li>
               <li><strong>Very slow APIs</strong> — calls time out after ~15 seconds</li>
             </ul>
+            <div class="compat-examples">
+              <span class="compat-examples-label">Try it:</span>
+              <button type="button" class="compat-example-chip" onclick="fillUrl('https://stripe.com')">stripe.com (marketing site)</button>
+              <button type="button" class="compat-example-chip" onclick="fillUrl('https://n8n.io')">n8n.io (marketing site)</button>
+            </div>
           </div>
           <div class="compat-col no">
             <div class="compat-col-head">❌ Won't work</div>
+            <div class="compat-link-badge no">🚫 No link generated — refused with an error</div>
             <ul class="compat-list">
               <li><strong>Private / internal / localhost URLs</strong> — blocked for security, prevents SSRF attacks</li>
               <li><strong>Unreachable or non-existent domains</strong> — nothing there to connect to</li>
               <li><strong>Malformed URLs</strong> — refused cleanly with an error instead of crashing</li>
             </ul>
+            <div class="compat-examples">
+              <span class="compat-examples-label">Try it:</span>
+              <button type="button" class="compat-example-chip" onclick="fillUrl('http://localhost')">localhost (blocked)</button>
+              <button type="button" class="compat-example-chip" onclick="fillUrl('javascript:alert(1)')">malformed URL</button>
+            </div>
           </div>
         </div>
       </section>
@@ -1135,7 +1225,10 @@
     let activeTab = 'claude_desktop';
 
     function fillUrl(url) {
-      document.getElementById('agentUrl').value = url;
+      const inputEl = document.getElementById('agentUrl');
+      inputEl.value = url;
+      inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      inputEl.focus();
     }
 
     async function handleGenerate(e) {
