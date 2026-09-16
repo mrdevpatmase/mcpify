@@ -13,8 +13,18 @@ import re
 from typing import Any, Dict, List, Optional
 
 import httpx
+import yaml
 
-SPEC_PATHS = ["/openapi.json", "/swagger.json", "/v3/api-docs", "/api-docs", "/docs/json"]
+SPEC_PATHS = [
+    "/openapi.json", "/swagger.json", "/v3/api-docs", "/api-docs", "/docs/json",
+    # YAML variants and a versioned-API-prefix guess - added after finding
+    # n8n's real Cloud API live: its actual spec is a 603KB YAML document
+    # at /api/v1/openapi.yml, content-type text/yaml, not any of the
+    # JSON-only paths above. Plenty of real platforms version their whole
+    # API under /api/v1 rather than publishing the spec at the domain root.
+    "/openapi.yml", "/openapi.yaml", "/swagger.yml", "/swagger.yaml",
+    "/api/v1/openapi.yml", "/api/v1/openapi.json",
+]
 
 # Real specs can have hundreds/thousands of operations (Stripe, GitHub) -
 # exposing all of them as separate MCP tools would overwhelm tools/list for
@@ -39,13 +49,21 @@ async def discover_openapi_spec(client: httpx.AsyncClient, base_url: str) -> Opt
         if resp.status_code != 200:
             continue
         content_type = (resp.headers.get("content-type") or "").lower()
-        if "json" not in content_type:
-            continue
+        is_yaml = "yaml" in content_type or path.endswith((".yml", ".yaml"))
         try:
-            spec = resp.json()
+            if is_yaml:
+                # yaml.safe_load also happens to parse valid JSON (JSON is
+                # a YAML subset), so this branch alone would cover both -
+                # kept as a separate branch anyway so a real JSON response
+                # never takes an unnecessary detour through the YAML parser.
+                spec = yaml.safe_load(resp.text)
+            elif "json" in content_type:
+                spec = resp.json()
+            else:
+                continue
         except Exception:
             continue
-        # A real OpenAPI/Swagger document, not just any JSON response that
+        # A real OpenAPI/Swagger document, not just any response that
         # happened to live at one of these conventional paths.
         if not isinstance(spec, dict):
             continue
@@ -87,10 +105,34 @@ def parse_operations(spec: Dict[str, Any], base_url: str) -> List[Dict[str, Any]
     if not isinstance(paths, dict):
         return []
 
+    # Sort admin/infra-config paths (settings, audit, SSO/LDAP, telemetry)
+    # after everything else before applying MAX_OPERATIONS - verified live
+    # against n8n's real 134-operation API: those paths happen to come
+    # FIRST in spec order, so a plain cap silently dropped every
+    # workflow/execution operation (the ones anyone actually wants to
+    # call) in favor of things like "put_settings_ldap". Relative order
+    # within each group is otherwise preserved.
+    def _priority(item):
+        path_template = item[0]
+        low_priority = any(
+            f"/{kw}" in path_template.lower()
+            for kw in ("settings", "audit", "license", "ldap", "sso", "saml", "oidc", "otel")
+        )
+        # Secondary key: path depth (segment count). A spec's own key
+        # order isn't reliable either - n8n's real spec lists
+        # "/workflows/{id}/test-runs/{runId}/test-cases" BEFORE the plain
+        # "/workflows" list/create path, so depth-first would have capped
+        # out on deep sub-resource operations before reaching the basic
+        # "list workflows"/"create workflow" ones anyone asks for first.
+        depth = path_template.count("/")
+        return (1 if low_priority else 0, depth)
+
+    ordered_paths = sorted(paths.items(), key=_priority)
+
     operations: List[Dict[str, Any]] = []
     used_names: set = set()
 
-    for path_template, methods in paths.items():
+    for path_template, methods in ordered_paths:
         if not isinstance(methods, dict):
             continue
         for method, op in methods.items():
