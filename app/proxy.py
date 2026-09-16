@@ -8,6 +8,7 @@ from typing import Dict, List, Any, Optional
 import httpx
 
 from app.security import normalize_url, is_public_url
+from app.openapi_tools import operations_to_mcp_tools, build_request
 
 logger = logging.getLogger("mcpify")
 
@@ -100,7 +101,10 @@ class ProxyMCPManager:
                 pass
         return os.getenv("APP_URL", "http://127.0.0.1:10000").rstrip("/")
 
-    async def create_proxy(self, target_url: str, has_mcp: bool = False, api_key: Optional[str] = None, request: Optional[Any] = None) -> Dict[str, Any]:
+    async def create_proxy(
+        self, target_url: str, has_mcp: bool = False, api_key: Optional[str] = None,
+        request: Optional[Any] = None, openapi_operations: Optional[List[Dict[str, Any]]] = None
+    ) -> Dict[str, Any]:
         """Create a new proxy session or return existing active proxy."""
         target_url = normalize_url(target_url)
         current_base_url = self.get_base_app_url(request)
@@ -129,6 +133,7 @@ class ProxyMCPManager:
                     # it as True, because reuse never looked at the fresh
                     # value at all).
                     existing["has_mcp"] = has_mcp
+                    existing["openapi_operations"] = openapi_operations
                     # Refresh proxy_url to the CURRENT app base, not
                     # whatever it was when this record was first created -
                     # a record made under an old domain (e.g. this app
@@ -150,6 +155,7 @@ class ProxyMCPManager:
                 "target_url": target_url,
                 "has_mcp": has_mcp,
                 "api_key": api_key,
+                "openapi_operations": openapi_operations,
                 "created_at": now_str,
                 "last_used": now_str,
                 "status": "active"
@@ -173,6 +179,7 @@ class ProxyMCPManager:
                     if api_key:
                         winner["api_key"] = api_key
                     winner["has_mcp"] = has_mcp
+                    winner["openapi_operations"] = openapi_operations
                     winner["proxy_url"] = f"{current_base_url}/proxy/{winner['proxy_id']}/mcp"
                     await self._redis_save_proxy(redis, winner)
                     return winner
@@ -189,6 +196,7 @@ class ProxyMCPManager:
                 if api_key:
                     proxy["api_key"] = api_key
                 proxy["has_mcp"] = has_mcp
+                proxy["openapi_operations"] = openapi_operations
                 proxy["proxy_url"] = f"{current_base_url}/proxy/{proxy_id}/mcp"
                 return proxy
 
@@ -200,6 +208,7 @@ class ProxyMCPManager:
             "target_url": target_url,
             "has_mcp": has_mcp,
             "api_key": api_key,
+            "openapi_operations": openapi_operations,
             "created_at": now_str,
             "last_used": now_str,
             "status": "active"
@@ -355,11 +364,12 @@ class ProxyMCPManager:
             }
 
         elif method == "tools/list":
+            discovered_tools = operations_to_mcp_tools(proxy["openapi_operations"]) if proxy.get("openapi_operations") else []
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
                 "result": {
-                    "tools": [
+                    "tools": discovered_tools + [
                         {
                             "name": "call_api",
                             "description": "Forward HTTP requests to the target agent API endpoints.",
@@ -416,14 +426,38 @@ class ProxyMCPManager:
                 # a string/list/null used to crash on args.get(...) below.
                 args = {}
 
-            if tool_name == "call_api":
-                endpoint = args.get("endpoint", "")
-                http_method = args.get("method", "GET").upper()
-                query_params = args.get("params")
-                json_payload = args.get("json_data")
+            discovered_ops = {op["tool_name"]: op for op in (proxy.get("openapi_operations") or [])}
 
-                if not endpoint.startswith("/"):
-                    endpoint = f"/{endpoint}"
+            if tool_name == "call_api" or tool_name in discovered_ops:
+                if tool_name == "call_api":
+                    endpoint = args.get("endpoint", "")
+                    if not endpoint.startswith("/"):
+                        endpoint = f"/{endpoint}"
+                    http_method = args.get("method", "GET").upper()
+                    query_params = args.get("params")
+                    json_payload = args.get("json_data")
+                else:
+                    # A specific tool discovered from the target's own
+                    # OpenAPI spec (e.g. "get_pet_by_id") - same execution
+                    # path as call_api from here on, just with the request
+                    # built from the operation's template instead of raw
+                    # user-supplied endpoint/method/params.
+                    op = discovered_ops[tool_name]
+                    built = build_request(op, args)
+                    if built["error"]:
+                        return {
+                            "jsonrpc": "2.0",
+                            "id": req_id,
+                            "result": {
+                                "content": [{"type": "text", "text": built["error"]}],
+                                "isError": True
+                            }
+                        }
+                    endpoint = built["path"]
+                    http_method = op["method"]
+                    query_params = built["params"] or None
+                    json_payload = built["json"]
+
                 full_target_url = f"{target_url}{endpoint}"
 
                 unsafe_reason = await _revalidate_target_safety(target_url)

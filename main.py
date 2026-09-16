@@ -24,6 +24,7 @@ from app.proxy import proxy_manager
 from app.generator import generate_proxy_config
 from app.security import is_public_url, resolve_canonical_base, normalize_url
 from app.analyzer import verify_mcp_handshake
+from app.openapi_tools import discover_openapi_spec, parse_operations
 from app.rate_limit import limiter
 
 # Load environment variables
@@ -263,7 +264,25 @@ async def create_proxy_endpoint(request: Request, payload: CreateProxyRequest):
     async with httpx.AsyncClient(timeout=5.0) as client:
         has_mcp = await verify_mcp_handshake(client, normalized_url, api_key=payload.api_key)
 
-    proxy_data = await proxy_manager.create_proxy(target_url=normalized_url, has_mcp=has_mcp, api_key=payload.api_key, request=request)
+    # No native MCP - see if the target publishes an OpenAPI/Swagger spec
+    # so the proxy can expose specific, named tools (e.g. "get_pet_by_id")
+    # instead of only the generic call_api(endpoint, method, ...) wrapper.
+    # Best-effort: falls back to None on any failure, same as has_mcp above
+    # falling back to the generic proxy.
+    openapi_operations = None
+    if not has_mcp:
+        try:
+            async with httpx.AsyncClient(timeout=6.0) as client:
+                spec = await discover_openapi_spec(client, normalized_url)
+                if spec:
+                    openapi_operations = parse_operations(spec, normalized_url) or None
+        except Exception:
+            openapi_operations = None
+
+    proxy_data = await proxy_manager.create_proxy(
+        target_url=normalized_url, has_mcp=has_mcp, api_key=payload.api_key, request=request,
+        openapi_operations=openapi_operations
+    )
     proxy_id = proxy_data["proxy_id"]
     proxy_url = proxy_data["proxy_url"]
 
