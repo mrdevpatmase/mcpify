@@ -94,16 +94,88 @@ def _json_type_for(schema: Dict[str, Any]) -> str:
     return schema.get("type") or "string"
 
 
+def resolve_auth_header_name(spec: Dict[str, Any]) -> Optional[str]:
+    """
+    Not every real API takes its key as "Authorization: Bearer <key>" -
+    verified live: n8n's spec declares its auth as
+    {"type": "apiKey", "in": "header", "name": "X-N8N-API-KEY"}, listed
+    FIRST in its top-level "security" array (its preferred scheme). A
+    proxy that only ever sends Authorization: Bearer would silently fail
+    auth on APIs like this even with a correct key. Returns the header
+    name to use instead, or None to keep the existing Bearer default
+    (also correct much of the time - petstore/reqres/openlibrary's specs
+    declare no security scheme at all, so None is the right answer there).
+    """
+    security = spec.get("security")
+    schemes = spec.get("components", {}).get("securitySchemes", {})
+    if not isinstance(security, list) or not isinstance(schemes, dict):
+        return None
+    for requirement in security:
+        if not isinstance(requirement, dict):
+            continue
+        for scheme_name in requirement:
+            scheme = schemes.get(scheme_name)
+            if isinstance(scheme, dict) and scheme.get("type") == "apiKey" and scheme.get("in") == "header":
+                return scheme.get("name")
+    return None
+
+
+def resolve_api_base(spec: Dict[str, Any], discovery_base_url: str) -> str:
+    """
+    A spec's "servers" entry declares where its paths are actually rooted -
+    they aren't always relative to the domain the spec itself was fetched
+    from. Verified live against n8n's real Cloud instance: its spec
+    declares servers: [{"url": "/api/v1"}], so "/workflows" only resolves
+    correctly as ".../api/v1/workflows" - every discovered tool call was
+    hitting the bare domain root (a 200 from n8n's SPA shell, not the API)
+    until this was read at all. Falls back to discovery_base_url itself
+    when the spec has no usable servers entry (openlibrary.org's real
+    spec has none) or already matches it (petstore3.swagger.io's spec
+    says "/api/v3", but that was already part of the URL discovery was
+    pointed at, so re-appending it would double it up).
+    """
+    servers = spec.get("servers")
+    if not isinstance(servers, list) or not servers:
+        return discovery_base_url
+    first = servers[0]
+    if not isinstance(first, dict):
+        return discovery_base_url
+    url = (first.get("url") or "").strip()
+    if not url:
+        return discovery_base_url
+
+    # Template servers ("{url}/api/v1") - the template variable almost
+    # always stands in for the deployment's own host (discovery_base_url
+    # itself); keep only the static suffix that follows it.
+    if "{" in url:
+        url = re.sub(r"\{[^}]*\}", "", url)
+
+    if url.startswith("http://") or url.startswith("https://"):
+        return url.rstrip("/")
+    if not url.startswith("/"):
+        return discovery_base_url
+
+    resolved = f"{discovery_base_url.rstrip('/')}{url}".rstrip("/")
+    if discovery_base_url.rstrip("/").endswith(url.rstrip("/")):
+        # Already part of the URL we discovered the spec from (petstore's
+        # case) - using it as-is again would double the path segment.
+        return discovery_base_url
+    return resolved
+
+
 def parse_operations(spec: Dict[str, Any], base_url: str) -> List[Dict[str, Any]]:
     """
     Walks spec["paths"] into a flat list of operations, each carrying
     everything needed to both describe it as an MCP tool and actually
-    execute it later: {tool_name, method, path_template, description,
-    path_params, query_params, has_body}.
+    execute it later: {tool_name, method, path_template, base_url,
+    description, path_params, query_params, has_body}.
     """
     paths = spec.get("paths")
     if not isinstance(paths, dict):
         return []
+
+    api_base = resolve_api_base(spec, base_url)
+    auth_header_name = resolve_auth_header_name(spec)
 
     # Sort admin/infra-config paths (settings, audit, SSO/LDAP, telemetry)
     # after everything else before applying MAX_OPERATIONS - verified live
@@ -180,6 +252,8 @@ def parse_operations(spec: Dict[str, Any], base_url: str) -> List[Dict[str, Any]
                 "tool_name": tool_name,
                 "method": method.upper(),
                 "path_template": path_template,
+                "base_url": api_base,
+                "auth_header_name": auth_header_name,
                 "description": description[:500],
                 "path_params": path_params,
                 "query_params": query_params,

@@ -429,6 +429,8 @@ class ProxyMCPManager:
             discovered_ops = {op["tool_name"]: op for op in (proxy.get("openapi_operations") or [])}
 
             if tool_name == "call_api" or tool_name in discovered_ops:
+                effective_base = target_url
+                auth_header_name = None
                 if tool_name == "call_api":
                     endpoint = args.get("endpoint", "")
                     if not endpoint.startswith("/"):
@@ -457,10 +459,20 @@ class ProxyMCPManager:
                     http_method = op["method"]
                     query_params = built["params"] or None
                     json_payload = built["json"]
+                    # The spec's own "servers" entry can declare a base
+                    # path (or even a different host) that its paths are
+                    # actually rooted at, distinct from the proxy's stored
+                    # target_url (see resolve_api_base's docstring - real
+                    # example: n8n's spec says "/api/v1", and every
+                    # discovered path is relative to THAT, not the bare
+                    # domain root). Use it as the real destination when
+                    # present.
+                    effective_base = op.get("base_url") or target_url
+                    auth_header_name = op.get("auth_header_name")
 
-                full_target_url = f"{target_url}{endpoint}"
+                full_target_url = f"{effective_base}{endpoint}"
 
-                unsafe_reason = await _revalidate_target_safety(target_url)
+                unsafe_reason = await _revalidate_target_safety(effective_base)
                 if unsafe_reason:
                     return {
                         "jsonrpc": "2.0",
@@ -475,7 +487,16 @@ class ProxyMCPManager:
 
                 headers = {}
                 if proxy.get("api_key"):
-                    headers["Authorization"] = f"Bearer {proxy['api_key']}"
+                    # Not every real API wants "Authorization: Bearer" -
+                    # verified live: n8n's spec declares its key goes in
+                    # an "X-N8N-API-KEY" header instead. Use whatever the
+                    # discovered operation's spec says when it says
+                    # anything; Bearer stays the default for call_api and
+                    # for specs with no declared auth scheme.
+                    if auth_header_name:
+                        headers[auth_header_name] = proxy["api_key"]
+                    else:
+                        headers["Authorization"] = f"Bearer {proxy['api_key']}"
 
                 try:
                     async with httpx.AsyncClient(timeout=12.0) as client:
