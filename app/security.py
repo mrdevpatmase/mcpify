@@ -215,6 +215,17 @@ async def resolve_canonical_base(url: str) -> str:
                     # target rather than silently switching to whatever
                     # unrelated site the redirect happened to point at.
                     break
+                if original_host.lower().startswith("api.") and not next_host.lower().startswith("api."):
+                    # Same registrable domain isn't always enough either -
+                    # verified live: api.trello.com's bare root 301s to
+                    # trello.com (the login/marketing page), same
+                    # registrable domain but a completely different
+                    # purpose. The real API answers fine at its actual
+                    # paths (GET /1/members/me returns a real API error,
+                    # not HTML) - following this redirect would have
+                    # dropped the "api." host and probed the marketing
+                    # site instead.
+                    break
                 current = next_url
             else:
                 # Exhausted the hop budget without landing on a final page.
