@@ -25,6 +25,7 @@ from app.generator import generate_proxy_config
 from app.security import is_public_url, resolve_canonical_base, normalize_url
 from app.analyzer import verify_mcp_handshake
 from app.openapi_tools import discover_openapi_spec, parse_operations
+from app.oauth import fetch_client_credentials_token
 from app.rate_limit import limiter
 
 # Load environment variables
@@ -181,6 +182,14 @@ class CreateProxyRequest(BaseModel):
         None,
         description="Bearer token to forward to the target agent's protected endpoints, if it requires auth."
     )
+    oauth_token_url: Optional[str] = Field(
+        None,
+        description="OAuth2 token endpoint for a client_credentials grant (machine-to-machine, no browser login). "
+                    "If set, oauth_client_id and oauth_client_secret are required too, and take priority over api_key."
+    )
+    oauth_client_id: Optional[str] = Field(None, description="OAuth2 client_credentials client ID.")
+    oauth_client_secret: Optional[str] = Field(None, description="OAuth2 client_credentials client secret.")
+    oauth_scope: Optional[str] = Field(None, description="Optional OAuth2 scope to request.")
 
 
 # 1. Health check & Web UI / Root endpoints
@@ -279,9 +288,37 @@ async def create_proxy_endpoint(request: Request, payload: CreateProxyRequest):
         except Exception:
             openapi_operations = None
 
+    # OAuth2 client_credentials (machine-to-machine, no browser login) -
+    # an alternative to api_key for targets that need it. Validated and
+    # test-fetched once here, at creation time, the same way api_key
+    # itself isn't verified until first use but has_mcp/openapi discovery
+    # already do their own checks eagerly - failing fast with a clear
+    # error beats a proxy that looks created but can never authenticate.
+    oauth_config = None
+    if payload.oauth_token_url:
+        if not payload.oauth_client_id or not payload.oauth_client_secret:
+            raise HTTPException(status_code=400, detail="oauth_client_id and oauth_client_secret are required when oauth_token_url is set.")
+        token_url_safe, token_url_reason = await is_public_url(payload.oauth_token_url)
+        if not token_url_safe:
+            raise HTTPException(status_code=400, detail=f"Refusing oauth_token_url: {token_url_reason}")
+        async with httpx.AsyncClient() as client:
+            token_result = await fetch_client_credentials_token(
+                client, payload.oauth_token_url, payload.oauth_client_id, payload.oauth_client_secret, payload.oauth_scope
+            )
+        if token_result["error"]:
+            raise HTTPException(status_code=400, detail=f"OAuth2 client_credentials setup failed: {token_result['error']}")
+        oauth_config = {
+            "token_url": payload.oauth_token_url,
+            "client_id": payload.oauth_client_id,
+            "client_secret": payload.oauth_client_secret,
+            "scope": payload.oauth_scope,
+            "cached_token": token_result["access_token"],
+            "cached_token_expires_at": token_result["expires_at"],
+        }
+
     proxy_data = await proxy_manager.create_proxy(
         target_url=normalized_url, has_mcp=has_mcp, api_key=payload.api_key, request=request,
-        openapi_operations=openapi_operations
+        openapi_operations=openapi_operations, oauth_config=oauth_config
     )
     proxy_id = proxy_data["proxy_id"]
     proxy_url = proxy_data["proxy_url"]

@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 import json
 import asyncio
@@ -9,6 +10,7 @@ import httpx
 
 from app.security import normalize_url, is_public_url
 from app.openapi_tools import operations_to_mcp_tools, build_request
+from app.oauth import fetch_client_credentials_token
 
 logger = logging.getLogger("mcpify")
 
@@ -103,7 +105,8 @@ class ProxyMCPManager:
 
     async def create_proxy(
         self, target_url: str, has_mcp: bool = False, api_key: Optional[str] = None,
-        request: Optional[Any] = None, openapi_operations: Optional[List[Dict[str, Any]]] = None
+        request: Optional[Any] = None, openapi_operations: Optional[List[Dict[str, Any]]] = None,
+        oauth_config: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Create a new proxy session or return existing active proxy."""
         target_url = normalize_url(target_url)
@@ -120,6 +123,8 @@ class ProxyMCPManager:
                     existing["last_used"] = now_str
                     if api_key:
                         existing["api_key"] = api_key
+                    if oauth_config:
+                        existing["oauth_config"] = oauth_config
                     # Refresh has_mcp too, not just last_used/api_key: the
                     # caller (main.py) always re-runs the real handshake
                     # check fresh before calling create_proxy, but that
@@ -156,6 +161,7 @@ class ProxyMCPManager:
                 "has_mcp": has_mcp,
                 "api_key": api_key,
                 "openapi_operations": openapi_operations,
+                "oauth_config": oauth_config,
                 "created_at": now_str,
                 "last_used": now_str,
                 "status": "active"
@@ -178,6 +184,8 @@ class ProxyMCPManager:
                     winner["last_used"] = now_str
                     if api_key:
                         winner["api_key"] = api_key
+                    if oauth_config:
+                        winner["oauth_config"] = oauth_config
                     winner["has_mcp"] = has_mcp
                     winner["openapi_operations"] = openapi_operations
                     winner["proxy_url"] = f"{current_base_url}/proxy/{winner['proxy_id']}/mcp"
@@ -195,6 +203,8 @@ class ProxyMCPManager:
                 proxy["last_used"] = now_str
                 if api_key:
                     proxy["api_key"] = api_key
+                if oauth_config:
+                    proxy["oauth_config"] = oauth_config
                 proxy["has_mcp"] = has_mcp
                 proxy["openapi_operations"] = openapi_operations
                 proxy["proxy_url"] = f"{current_base_url}/proxy/{proxy_id}/mcp"
@@ -209,6 +219,7 @@ class ProxyMCPManager:
             "has_mcp": has_mcp,
             "api_key": api_key,
             "openapi_operations": openapi_operations,
+            "oauth_config": oauth_config,
             "created_at": now_str,
             "last_used": now_str,
             "status": "active"
@@ -255,8 +266,9 @@ class ProxyMCPManager:
 
         result = []
         for proxy in proxies:
-            sanitized = {k: v for k, v in proxy.items() if k != "api_key"}
+            sanitized = {k: v for k, v in proxy.items() if k not in ("api_key", "oauth_config")}
             sanitized["has_api_key"] = bool(proxy.get("api_key"))
+            sanitized["has_oauth"] = bool(proxy.get("oauth_config"))
             result.append(sanitized)
         return result
 
@@ -278,6 +290,51 @@ class ProxyMCPManager:
         proxy = self.proxies.get(proxy_id)
         if proxy:
             proxy["last_ping_status"] = status_code
+
+    async def get_valid_oauth_token(self, proxy: Dict[str, Any]) -> tuple:
+        """
+        Returns (access_token, error) for a proxy configured with OAuth2
+        client_credentials. Reuses the cached token while it's still
+        valid; transparently fetches and persists a fresh one otherwise,
+        so a tool call never has to know whether this is the first call
+        or the hundredth. (None, None) means no OAuth is configured for
+        this proxy at all - callers fall back to plain api_key/Bearer.
+        """
+        oauth_config = proxy.get("oauth_config")
+        if not oauth_config:
+            return None, None
+
+        if oauth_config.get("cached_token") and oauth_config.get("cached_token_expires_at", 0) > time.time():
+            return oauth_config["cached_token"], None
+
+        # token_url's safety was only checked ONCE, at proxy-creation time
+        # - same DNS-rebinding gap as target_url itself (see
+        # _revalidate_target_safety's docstring), closed the same way:
+        # re-check right before every actual outbound call, not just the
+        # first one, since a refresh can happen much later than creation.
+        is_safe, reason = await is_public_url(oauth_config["token_url"])
+        if not is_safe:
+            return None, f"Refusing to call OAuth token endpoint: {reason}"
+
+        async with httpx.AsyncClient() as client:
+            result = await fetch_client_credentials_token(
+                client, oauth_config["token_url"], oauth_config["client_id"],
+                oauth_config["client_secret"], oauth_config.get("scope")
+            )
+        if result["error"]:
+            return None, result["error"]
+
+        oauth_config["cached_token"] = result["access_token"]
+        oauth_config["cached_token_expires_at"] = result["expires_at"]
+        proxy["oauth_config"] = oauth_config
+
+        redis = self._get_redis()
+        if redis is not None:
+            await self._redis_save_proxy(redis, proxy)
+        # In-memory proxies are mutated in place above (proxy is the same
+        # dict object stored in self.proxies) - nothing further to persist.
+
+        return result["access_token"], None
 
     async def forward_request(self, proxy_id: str, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """Forward request to target or process MCP wrapper tool calls."""
@@ -303,7 +360,10 @@ class ProxyMCPManager:
             # missing it (verified live: DeepWiki 406s a POST without this
             # exact Accept header, same as its GET behavior).
             headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
-            if proxy.get("api_key"):
+            oauth_token, oauth_error = await self.get_valid_oauth_token(proxy)
+            if oauth_token:
+                headers["Authorization"] = f"Bearer {oauth_token}"
+            elif proxy.get("api_key"):
                 headers["Authorization"] = f"Bearer {proxy['api_key']}"
             try:
                 async with httpx.AsyncClient(timeout=15.0) as client:
@@ -486,7 +546,22 @@ class ProxyMCPManager:
                     }
 
                 headers = {}
-                if proxy.get("api_key"):
+                oauth_token, oauth_error = await self.get_valid_oauth_token(proxy)
+                if oauth_error:
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "result": {
+                            "content": [{"type": "text", "text": f"OAuth2 token refresh failed: {oauth_error}"}],
+                            "isError": True
+                        }
+                    }
+                if oauth_token:
+                    # OAuth2 client_credentials takes priority over a
+                    # plain api_key when both are somehow set - it's the
+                    # more specific, more recently-issued credential.
+                    headers["Authorization"] = f"Bearer {oauth_token}"
+                elif proxy.get("api_key"):
                     # Not every real API wants "Authorization: Bearer" -
                     # verified live: n8n's spec declares its key goes in
                     # an "X-N8N-API-KEY" header instead. Use whatever the

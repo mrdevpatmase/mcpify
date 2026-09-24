@@ -7,6 +7,7 @@ like the rest of the real-world corpus - see test_real_world_corpus.py's
 module docstring for why.
 """
 import asyncio
+import time
 
 import httpx
 import pytest
@@ -26,6 +27,15 @@ PETSTORE = "https://petstore3.swagger.io/api/v3"
 
 
 def test_discovers_and_calls_a_real_spec():
+    """
+    petstore3.swagger.io is a shared public sandbox - anyone's test suite
+    can create/delete pets in it, so a hardcoded petId (this test
+    originally used 1) can start 404ing at any time through no fault of
+    this code, exactly the kind of third-party flakiness
+    test_real_world_corpus.py's docstring warns about. Creates its own
+    pet via the discovered add_pet tool and reads that back instead, so
+    the test doesn't depend on any pre-existing shared state.
+    """
     async def run():
         async with httpx.AsyncClient(timeout=10.0) as client:
             spec = await discover_openapi_spec(client, PETSTORE)
@@ -35,12 +45,22 @@ def test_discovers_and_calls_a_real_spec():
         tools = operations_to_mcp_tools(ops)
         names = {t["name"] for t in tools}
         assert "get_pet_by_id" in names
+        assert "add_pet" in names
 
-        op = next(o for o in ops if o["tool_name"] == "get_pet_by_id")
+        add_op = next(o for o in ops if o["tool_name"] == "add_pet")
+        pet_id = 900000000 + int(time.time()) % 99999999
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(f"{op['base_url']}{build_request(op, {'petId': 1})['path']}")
+            create_resp = await client.post(
+                f"{add_op['base_url']}{add_op['path_template']}",
+                json={"id": pet_id, "name": "mcpify-test-pet", "photoUrls": [], "status": "available"},
+            )
+        assert create_resp.status_code == 200
+
+        get_op = next(o for o in ops if o["tool_name"] == "get_pet_by_id")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(f"{get_op['base_url']}{build_request(get_op, {'petId': pet_id})['path']}")
         assert resp.status_code == 200
-        assert resp.json()["id"] == 1
+        assert resp.json()["id"] == pet_id
 
     asyncio.run(run())
 
