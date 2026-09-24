@@ -135,6 +135,43 @@ async def is_public_url(url: str) -> tuple[bool, str]:
     return True, ""
 
 
+_MULTI_PART_TLDS = {
+    "co.uk", "org.uk", "gov.uk", "ac.uk", "co.in", "co.jp", "co.kr", "co.nz",
+    "com.au", "com.br", "com.cn", "com.mx", "com.sg", "com.tw", "co.za",
+}
+
+
+def _registrable_domain(hostname: str) -> str:
+    """
+    Approximates "the real site" a hostname belongs to, for deciding
+    whether a redirect target is still the same site
+    (api.example.com -> www.example.com, following it is the whole
+    point of resolve_canonical_base) or a genuinely different one -
+    verified live: HubSpot's real API domain (api.hubapi.com) has no
+    root page and 302s the bare root to developers.hubspot.com, a
+    completely unrelated docs site on a different registrable domain,
+    not "the API moved here". Following that redirect resolved every
+    later probe against the wrong target entirely, losing the real API.
+
+    Not a full public-suffix-list implementation (no new dependency for
+    this) - handles the common two-label case plus a short list of
+    frequently-seen multi-label ccTLDs. An unrecognized multi-label TLD
+    occasionally being one label too coarse is an acceptable miss here:
+    this is already a best-effort convenience, not a security boundary -
+    is_public_url is what actually guards against unsafe redirect
+    targets, unaffected by this.
+    """
+    labels = hostname.lower().split(".")
+    if len(labels) < 2:
+        return hostname.lower()
+    last_two = ".".join(labels[-2:])
+    if len(labels) >= 3:
+        last_three = ".".join(labels[-3:])
+        if last_two in _MULTI_PART_TLDS:
+            return last_three
+    return last_two
+
+
 async def resolve_canonical_base(url: str) -> str:
     """
     Many real sites blanket-redirect at the domain level (apex -> www,
@@ -170,6 +207,14 @@ async def resolve_canonical_base(url: str) -> str:
                 is_safe, _ = await is_public_url(next_url)
                 if not is_safe:
                     return url
+                next_host = urlparse(next_url).hostname or ""
+                original_host = urlparse(url).hostname or ""
+                if _registrable_domain(next_host) != _registrable_domain(original_host):
+                    # A genuinely different site, not "this same API
+                    # moved" - stop here and keep probing the ORIGINAL
+                    # target rather than silently switching to whatever
+                    # unrelated site the redirect happened to point at.
+                    break
                 current = next_url
             else:
                 # Exhausted the hop budget without landing on a final page.
