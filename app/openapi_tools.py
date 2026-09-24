@@ -11,6 +11,7 @@ enrichment on top of the generic proxy, never a requirement for it to work.
 """
 import re
 from typing import Any, Dict, List, Optional
+from urllib.parse import quote
 
 import httpx
 import yaml
@@ -316,7 +317,13 @@ def build_request(op: Dict[str, Any], arguments: Dict[str, Any]) -> Dict[str, An
             if p["required"]:
                 return {"error": f"Missing required path parameter: {name}"}
             continue
-        path = path.replace("{" + name + "}", str(arguments[name]))
+        # quote with safe="" (not the default safe="/"): a path param is
+        # one opaque segment, not a sub-path - an unencoded "/", "?", or
+        # ".." in the value would otherwise let a caller inject extra path
+        # segments or a query string into the URL (e.g. petId="../admin"
+        # or petId="x?foo=bar"), silently hitting a completely different
+        # endpoint than the one this tool declares.
+        path = path.replace("{" + name + "}", quote(str(arguments[name]), safe=""))
 
     params = {}
     for p in op["query_params"]:
