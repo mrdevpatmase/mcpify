@@ -1,10 +1,12 @@
 import os
 import uuid
 import json
+import secrets
 import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import Dict, Any, Optional
+from urllib.parse import urlencode
 
 from fastapi import FastAPI, Request, HTTPException, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,7 +28,7 @@ from app.security import is_public_url, resolve_canonical_base, normalize_url
 from app.analyzer import verify_mcp_handshake
 from app.openapi_tools import discover_openapi_spec, parse_operations
 from app.graphql_tools import discover_graphql_schema
-from app.oauth import fetch_client_credentials_token
+from app.oauth import fetch_client_credentials_token, exchange_authorization_code
 from app.rate_limit import limiter
 
 # Load environment variables
@@ -185,12 +187,17 @@ class CreateProxyRequest(BaseModel):
     )
     oauth_token_url: Optional[str] = Field(
         None,
-        description="OAuth2 token endpoint for a client_credentials grant (machine-to-machine, no browser login). "
-                    "If set, oauth_client_id and oauth_client_secret are required too, and take priority over api_key."
+        description="OAuth2 token endpoint. Required for either OAuth grant below. Takes priority over api_key."
     )
-    oauth_client_id: Optional[str] = Field(None, description="OAuth2 client_credentials client ID.")
-    oauth_client_secret: Optional[str] = Field(None, description="OAuth2 client_credentials client secret.")
+    oauth_client_id: Optional[str] = Field(None, description="OAuth2 client ID.")
+    oauth_client_secret: Optional[str] = Field(None, description="OAuth2 client secret.")
     oauth_scope: Optional[str] = Field(None, description="Optional OAuth2 scope to request.")
+    oauth_authorization_url: Optional[str] = Field(
+        None,
+        description="OAuth2 authorization endpoint (the target's login/consent page URL). Setting this switches "
+                    "to the Authorization Code grant (interactive browser login) instead of client_credentials - "
+                    "the response will include an authorization_url to visit once to complete it."
+    )
 
 
 # 1. Health check & Web UI / Root endpoints
@@ -309,26 +316,76 @@ async def create_proxy_endpoint(request: Request, payload: CreateProxyRequest):
     # already do their own checks eagerly - failing fast with a clear
     # error beats a proxy that looks created but can never authenticate.
     oauth_config = None
+    authorization_url_for_user = None
     if payload.oauth_token_url:
         if not payload.oauth_client_id or not payload.oauth_client_secret:
             raise HTTPException(status_code=400, detail="oauth_client_id and oauth_client_secret are required when oauth_token_url is set.")
         token_url_safe, token_url_reason = await is_public_url(payload.oauth_token_url)
         if not token_url_safe:
             raise HTTPException(status_code=400, detail=f"Refusing oauth_token_url: {token_url_reason}")
-        async with httpx.AsyncClient() as client:
-            token_result = await fetch_client_credentials_token(
-                client, payload.oauth_token_url, payload.oauth_client_id, payload.oauth_client_secret, payload.oauth_scope
-            )
-        if token_result["error"]:
-            raise HTTPException(status_code=400, detail=f"OAuth2 client_credentials setup failed: {token_result['error']}")
-        oauth_config = {
-            "token_url": payload.oauth_token_url,
-            "client_id": payload.oauth_client_id,
-            "client_secret": payload.oauth_client_secret,
-            "scope": payload.oauth_scope,
-            "cached_token": token_result["access_token"],
-            "cached_token_expires_at": token_result["expires_at"],
-        }
+
+        if payload.oauth_authorization_url:
+            # Authorization Code grant - can't fetch a token synchronously
+            # here the way client_credentials does below: a human has to
+            # log into the TARGET's own site first. Build a pending
+            # oauth_config and hand back a URL for the user to visit once;
+            # /oauth/callback completes the exchange when they get
+            # redirected back.
+            auth_url_safe, auth_url_reason = await is_public_url(payload.oauth_authorization_url)
+            if not auth_url_safe:
+                raise HTTPException(status_code=400, detail=f"Refusing oauth_authorization_url: {auth_url_reason}")
+
+            # Prefer the deployment's own configured APP_URL over the
+            # incoming request's Host header for this one - unlike
+            # proxy_url (a convenience link handed back to the same
+            # caller who already knows what they sent), redirect_uri is
+            # embedded into a request sent to a THIRD PARTY (the OAuth
+            # provider), which will send the user's authorization code
+            # back to it. A spoofed Host header on this request must not
+            # be able to redirect that code somewhere else.
+            app_base_url = os.getenv("APP_URL", "").rstrip("/") or proxy_manager.get_base_app_url(request)
+            redirect_uri = f"{app_base_url}/oauth/callback"
+            state = secrets.token_urlsafe(32)
+            query = {
+                "response_type": "code",
+                "client_id": payload.oauth_client_id,
+                "redirect_uri": redirect_uri,
+                "state": state,
+            }
+            if payload.oauth_scope:
+                query["scope"] = payload.oauth_scope
+            authorization_url_for_user = f"{payload.oauth_authorization_url}?{urlencode(query)}"
+
+            oauth_config = {
+                "grant_type": "authorization_code",
+                "authorization_url": payload.oauth_authorization_url,
+                "token_url": payload.oauth_token_url,
+                "client_id": payload.oauth_client_id,
+                "client_secret": payload.oauth_client_secret,
+                "scope": payload.oauth_scope,
+                "redirect_uri": redirect_uri,
+                "cached_token": None,
+                "cached_token_expires_at": None,
+                "refresh_token": None,
+                "authorization_url_for_user": authorization_url_for_user,
+                "oauth_state": state,
+            }
+        else:
+            async with httpx.AsyncClient() as client:
+                token_result = await fetch_client_credentials_token(
+                    client, payload.oauth_token_url, payload.oauth_client_id, payload.oauth_client_secret, payload.oauth_scope
+                )
+            if token_result["error"]:
+                raise HTTPException(status_code=400, detail=f"OAuth2 client_credentials setup failed: {token_result['error']}")
+            oauth_config = {
+                "grant_type": "client_credentials",
+                "token_url": payload.oauth_token_url,
+                "client_id": payload.oauth_client_id,
+                "client_secret": payload.oauth_client_secret,
+                "scope": payload.oauth_scope,
+                "cached_token": token_result["access_token"],
+                "cached_token_expires_at": token_result["expires_at"],
+            }
 
     proxy_data = await proxy_manager.create_proxy(
         target_url=normalized_url, has_mcp=has_mcp, api_key=payload.api_key, request=request,
@@ -337,11 +394,16 @@ async def create_proxy_endpoint(request: Request, payload: CreateProxyRequest):
     proxy_id = proxy_data["proxy_id"]
     proxy_url = proxy_data["proxy_url"]
 
+    if authorization_url_for_user:
+        await proxy_manager.save_pending_oauth_state(oauth_config["oauth_state"], proxy_id)
+
     configs = generate_proxy_config(proxy_url, normalized_url)
 
     return {
         "proxy_id": proxy_id,
         "proxy_url": proxy_url,
+        "authorization_url": authorization_url_for_user,
+        "authorization_required": bool(authorization_url_for_user),
         "target_url": proxy_data["target_url"],
         "claude_desktop_config": configs["claude_desktop"],
         "cursor_config": configs["cursor_vscode"],
@@ -351,6 +413,73 @@ async def create_proxy_endpoint(request: Request, payload: CreateProxyRequest):
         "claude_code_cli_config": configs["claude_code_cli"],
         "status": proxy_data["status"]
     }
+
+
+@app.get("/oauth/callback", summary="OAuth2 Authorization Code Callback")
+async def oauth_callback(
+    code: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+    error: Optional[str] = Query(None),
+    error_description: Optional[str] = Query(None),
+):
+    """
+    Where a target's OAuth login/consent page redirects the user's
+    browser back to after they approve (or deny) access. state
+    correlates this callback to the proxy that started the flow (see
+    save_pending_oauth_state's docstring for why it must be unguessable
+    and single-use) - it is NOT the same thing as a client_id, and
+    nothing here trusts the request beyond what that lookup returns.
+    """
+    if error:
+        return HTMLResponse(
+            f"<h2>Authorization failed</h2><p>{error}: {error_description or 'No further details provided.'}</p>",
+            status_code=400,
+        )
+    if not code or not state:
+        raise HTTPException(status_code=400, detail="Missing 'code' or 'state' parameter.")
+
+    proxy_id = await proxy_manager.pop_pending_oauth_state(state)
+    if not proxy_id:
+        raise HTTPException(
+            status_code=400,
+            detail="This authorization link has expired or was already used. Please start the connection again."
+        )
+
+    proxy = await proxy_manager.get_proxy(proxy_id)
+    if not proxy or not proxy.get("oauth_config"):
+        raise HTTPException(status_code=404, detail="Proxy configuration not found.")
+
+    oauth_config = proxy["oauth_config"]
+
+    # token_url was only validated once, at /proxy/create time - re-check
+    # now for the same DNS-rebinding reason every other outbound call in
+    # this app does (see _revalidate_target_safety's docstring).
+    token_url_safe, reason = await is_public_url(oauth_config["token_url"])
+    if not token_url_safe:
+        raise HTTPException(status_code=400, detail=f"Refusing to call token endpoint: {reason}")
+
+    async with httpx.AsyncClient() as client:
+        result = await exchange_authorization_code(
+            client, oauth_config["token_url"], oauth_config["client_id"], oauth_config["client_secret"],
+            code, oauth_config["redirect_uri"]
+        )
+    if result["error"]:
+        return HTMLResponse(f"<h2>Token exchange failed</h2><p>{result['error']}</p>", status_code=400)
+
+    oauth_config["cached_token"] = result["access_token"]
+    oauth_config["cached_token_expires_at"] = result["expires_at"]
+    if result.get("refresh_token"):
+        oauth_config["refresh_token"] = result["refresh_token"]
+    proxy["oauth_config"] = oauth_config
+    await proxy_manager.save_proxy(proxy)
+
+    if not oauth_config.get("refresh_token"):
+        return HTMLResponse(
+            "<h2>Connected (no long-term refresh)</h2>"
+            "<p>You're connected now, but this provider didn't issue a refresh token, so this connection will "
+            "need a fresh login again once the current session expires.</p>"
+        )
+    return HTMLResponse("<h2>Connected!</h2><p>You can close this tab and return to Claude.</p>")
 
 
 @app.get("/proxy/list", summary="List Active Proxies")

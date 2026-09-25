@@ -11,7 +11,7 @@ import httpx
 from app.security import normalize_url, is_public_url
 from app.openapi_tools import operations_to_mcp_tools, build_request
 from app.graphql_tools import graphql_tools_schema
-from app.oauth import fetch_client_credentials_token
+from app.oauth import fetch_client_credentials_token, refresh_access_token
 
 logger = logging.getLogger("mcpify")
 
@@ -84,6 +84,7 @@ class ProxyMCPManager:
         self._redis = None
         self.proxies: Dict[str, Dict[str, Any]] = {}
         self.sessions: Dict[str, asyncio.Queue] = {}
+        self._pending_oauth_states: Dict[str, tuple] = {}
 
     def _get_redis(self):
         if not self.redis_url:
@@ -300,11 +301,19 @@ class ProxyMCPManager:
     async def get_valid_oauth_token(self, proxy: Dict[str, Any]) -> tuple:
         """
         Returns (access_token, error) for a proxy configured with OAuth2
-        client_credentials. Reuses the cached token while it's still
-        valid; transparently fetches and persists a fresh one otherwise,
-        so a tool call never has to know whether this is the first call
-        or the hundredth. (None, None) means no OAuth is configured for
-        this proxy at all - callers fall back to plain api_key/Bearer.
+        (either client_credentials or authorization_code). Reuses the
+        cached token while it's still valid; transparently renews it
+        otherwise, so a tool call never has to know whether this is the
+        first call or the hundredth. (None, None) means no OAuth is
+        configured for this proxy at all - callers fall back to plain
+        api_key/Bearer.
+
+        A pending authorization_code proxy (user hasn't visited the
+        authorization_url and completed login yet) has no cached_token
+        AND no refresh_token - that's reported as an error rather than
+        silently falling back to an unauthenticated call, since the user
+        very much does have OAuth configured, just hasn't finished
+        setting it up.
         """
         oauth_config = proxy.get("oauth_config")
         if not oauth_config:
@@ -322,25 +331,87 @@ class ProxyMCPManager:
         if not is_safe:
             return None, f"Refusing to call OAuth token endpoint: {reason}"
 
+        grant_type = oauth_config.get("grant_type", "client_credentials")
         async with httpx.AsyncClient() as client:
-            result = await fetch_client_credentials_token(
-                client, oauth_config["token_url"], oauth_config["client_id"],
-                oauth_config["client_secret"], oauth_config.get("scope")
-            )
+            if grant_type == "authorization_code":
+                if not oauth_config.get("refresh_token"):
+                    return None, (
+                        "This connector needs a one-time login before it can be used. "
+                        f"Visit {oauth_config.get('authorization_url_for_user', '(authorization URL missing)')} to authorize it."
+                    )
+                result = await refresh_access_token(
+                    client, oauth_config["token_url"], oauth_config["client_id"],
+                    oauth_config["client_secret"], oauth_config["refresh_token"]
+                )
+            else:
+                result = await fetch_client_credentials_token(
+                    client, oauth_config["token_url"], oauth_config["client_id"],
+                    oauth_config["client_secret"], oauth_config.get("scope")
+                )
         if result["error"]:
             return None, result["error"]
 
         oauth_config["cached_token"] = result["access_token"]
         oauth_config["cached_token_expires_at"] = result["expires_at"]
+        if result.get("refresh_token"):
+            # Not every provider issues a new refresh_token on renewal -
+            # keep the existing one when it doesn't (Google, notably,
+            # only sends refresh_token on the VERY FIRST exchange).
+            oauth_config["refresh_token"] = result["refresh_token"]
         proxy["oauth_config"] = oauth_config
 
+        await self.save_proxy(proxy)
+
+        return result["access_token"], None
+
+    async def save_proxy(self, proxy: Dict[str, Any]) -> None:
+        """
+        Persists an already-fetched proxy dict back to storage after an
+        in-place mutation (token refresh, OAuth callback completion).
+        Redis needs an explicit write-back since get_proxy/_redis_get_proxy
+        hand back a freshly deserialized copy, not the stored object
+        itself; the in-memory dict is normally mutated by reference
+        already, but this keeps both paths correct even if a caller got
+        its copy some other way (e.g. json.loads'd its own copy).
+        """
         redis = self._get_redis()
         if redis is not None:
             await self._redis_save_proxy(redis, proxy)
-        # In-memory proxies are mutated in place above (proxy is the same
-        # dict object stored in self.proxies) - nothing further to persist.
+        else:
+            self.proxies[proxy["proxy_id"]] = proxy
 
-        return result["access_token"], None
+    async def save_pending_oauth_state(self, state: str, proxy_id: str, ttl_seconds: int = 600) -> None:
+        """
+        Correlates an OAuth2 authorization_code redirect back to the
+        proxy that initiated it. state is an unguessable, single-use
+        token (CSRF protection - without it, an attacker could trick a
+        victim into completing an authorization flow that gets bound to
+        the attacker's own pending proxy instead of the victim's).
+        """
+        redis = self._get_redis()
+        if redis is not None:
+            await redis.set(f"mcpify:oauth_state:{state}", proxy_id, ex=ttl_seconds)
+        else:
+            self._pending_oauth_states[state] = (proxy_id, time.time() + ttl_seconds)
+
+    async def pop_pending_oauth_state(self, state: str) -> Optional[str]:
+        """Retrieves and immediately invalidates a pending OAuth state,
+        so the same authorization redirect can't be replayed twice."""
+        redis = self._get_redis()
+        if redis is not None:
+            key = f"mcpify:oauth_state:{state}"
+            proxy_id = await redis.get(key)
+            if proxy_id:
+                await redis.delete(key)
+            return proxy_id
+
+        entry = self._pending_oauth_states.pop(state, None)
+        if not entry:
+            return None
+        proxy_id, expires_at = entry
+        if expires_at < time.time():
+            return None
+        return proxy_id
 
     async def forward_request(self, proxy_id: str, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """Forward request to target or process MCP wrapper tool calls."""
