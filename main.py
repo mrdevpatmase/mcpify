@@ -25,6 +25,7 @@ from app.generator import generate_proxy_config
 from app.security import is_public_url, resolve_canonical_base, normalize_url
 from app.analyzer import verify_mcp_handshake
 from app.openapi_tools import discover_openapi_spec, parse_operations
+from app.graphql_tools import discover_graphql_schema
 from app.oauth import fetch_client_credentials_token
 from app.rate_limit import limiter
 
@@ -288,6 +289,19 @@ async def create_proxy_endpoint(request: Request, payload: CreateProxyRequest):
         except Exception:
             openapi_operations = None
 
+    # If it's not a REST API with an OpenAPI spec either, see if it's a
+    # GraphQL API - same best-effort, falls-back-to-generic-call_api
+    # pattern as the OpenAPI check above. Only probed when OpenAPI
+    # discovery came up empty since a target is realistically one or the
+    # other, not both.
+    graphql_config = None
+    if not has_mcp and not openapi_operations:
+        try:
+            async with httpx.AsyncClient(timeout=6.0) as client:
+                graphql_config = await discover_graphql_schema(client, normalized_url)
+        except Exception:
+            graphql_config = None
+
     # OAuth2 client_credentials (machine-to-machine, no browser login) -
     # an alternative to api_key for targets that need it. Validated and
     # test-fetched once here, at creation time, the same way api_key
@@ -318,7 +332,7 @@ async def create_proxy_endpoint(request: Request, payload: CreateProxyRequest):
 
     proxy_data = await proxy_manager.create_proxy(
         target_url=normalized_url, has_mcp=has_mcp, api_key=payload.api_key, request=request,
-        openapi_operations=openapi_operations, oauth_config=oauth_config
+        openapi_operations=openapi_operations, oauth_config=oauth_config, graphql_config=graphql_config
     )
     proxy_id = proxy_data["proxy_id"]
     proxy_url = proxy_data["proxy_url"]

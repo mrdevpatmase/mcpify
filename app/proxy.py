@@ -10,6 +10,7 @@ import httpx
 
 from app.security import normalize_url, is_public_url
 from app.openapi_tools import operations_to_mcp_tools, build_request
+from app.graphql_tools import graphql_tools_schema
 from app.oauth import fetch_client_credentials_token
 
 logger = logging.getLogger("mcpify")
@@ -106,7 +107,7 @@ class ProxyMCPManager:
     async def create_proxy(
         self, target_url: str, has_mcp: bool = False, api_key: Optional[str] = None,
         request: Optional[Any] = None, openapi_operations: Optional[List[Dict[str, Any]]] = None,
-        oauth_config: Optional[Dict[str, Any]] = None
+        oauth_config: Optional[Dict[str, Any]] = None, graphql_config: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Create a new proxy session or return existing active proxy."""
         target_url = normalize_url(target_url)
@@ -139,6 +140,7 @@ class ProxyMCPManager:
                     # value at all).
                     existing["has_mcp"] = has_mcp
                     existing["openapi_operations"] = openapi_operations
+                    existing["graphql_config"] = graphql_config
                     # Refresh proxy_url to the CURRENT app base, not
                     # whatever it was when this record was first created -
                     # a record made under an old domain (e.g. this app
@@ -162,6 +164,7 @@ class ProxyMCPManager:
                 "api_key": api_key,
                 "openapi_operations": openapi_operations,
                 "oauth_config": oauth_config,
+                "graphql_config": graphql_config,
                 "created_at": now_str,
                 "last_used": now_str,
                 "status": "active"
@@ -188,6 +191,7 @@ class ProxyMCPManager:
                         winner["oauth_config"] = oauth_config
                     winner["has_mcp"] = has_mcp
                     winner["openapi_operations"] = openapi_operations
+                    winner["graphql_config"] = graphql_config
                     winner["proxy_url"] = f"{current_base_url}/proxy/{winner['proxy_id']}/mcp"
                     await self._redis_save_proxy(redis, winner)
                     return winner
@@ -207,6 +211,7 @@ class ProxyMCPManager:
                     proxy["oauth_config"] = oauth_config
                 proxy["has_mcp"] = has_mcp
                 proxy["openapi_operations"] = openapi_operations
+                proxy["graphql_config"] = graphql_config
                 proxy["proxy_url"] = f"{current_base_url}/proxy/{proxy_id}/mcp"
                 return proxy
 
@@ -220,6 +225,7 @@ class ProxyMCPManager:
             "api_key": api_key,
             "openapi_operations": openapi_operations,
             "oauth_config": oauth_config,
+            "graphql_config": graphql_config,
             "created_at": now_str,
             "last_used": now_str,
             "status": "active"
@@ -425,11 +431,12 @@ class ProxyMCPManager:
 
         elif method == "tools/list":
             discovered_tools = operations_to_mcp_tools(proxy["openapi_operations"]) if proxy.get("openapi_operations") else []
+            graphql_tools = graphql_tools_schema(proxy["graphql_config"]) if proxy.get("graphql_config") else []
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
                 "result": {
-                    "tools": discovered_tools + [
+                    "tools": discovered_tools + graphql_tools + [
                         {
                             "name": "call_api",
                             "description": "Forward HTTP requests to the target agent API endpoints.",
@@ -619,6 +626,96 @@ class ProxyMCPManager:
                                     "text": f"Error connecting to target endpoint {full_target_url}: {str(e)}"
                                 }
                             ],
+                            "isError": True
+                        }
+                    }
+
+            elif tool_name in ("graphql_schema", "graphql_query"):
+                graphql_config = proxy.get("graphql_config")
+                if not graphql_config:
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "result": {
+                            "content": [{"type": "text", "text": "No GraphQL schema was discovered on this target."}],
+                            "isError": True
+                        }
+                    }
+
+                if tool_name == "graphql_schema":
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "result": {
+                            "content": [{"type": "text", "text": json.dumps(graphql_config["operations"], indent=2)}]
+                        }
+                    }
+
+                query = args.get("query")
+                if not query:
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "result": {
+                            "content": [{"type": "text", "text": "Missing required 'query' argument."}],
+                            "isError": True
+                        }
+                    }
+                variables = args.get("variables")
+                graphql_endpoint = graphql_config["endpoint"]
+
+                unsafe_reason = await _revalidate_target_safety(graphql_endpoint)
+                if unsafe_reason:
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "result": {
+                            "content": [{"type": "text", "text": f"Refusing to call target: {unsafe_reason}"}],
+                            "isError": True
+                        }
+                    }
+
+                headers = {"Content-Type": "application/json"}
+                oauth_token, oauth_error = await self.get_valid_oauth_token(proxy)
+                if oauth_error:
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "result": {
+                            "content": [{"type": "text", "text": f"OAuth2 token refresh failed: {oauth_error}"}],
+                            "isError": True
+                        }
+                    }
+                if oauth_token:
+                    headers["Authorization"] = f"Bearer {oauth_token}"
+                elif proxy.get("api_key"):
+                    headers["Authorization"] = f"Bearer {proxy['api_key']}"
+
+                try:
+                    async with httpx.AsyncClient(timeout=12.0) as client:
+                        resp = await client.post(
+                            graphql_endpoint,
+                            json={"query": query, "variables": variables} if variables is not None else {"query": query},
+                            headers=headers
+                        )
+                        try:
+                            body_res = resp.json()
+                        except Exception:
+                            body_res = resp.text
+                        output = {"status_code": resp.status_code, "response": body_res}
+                        return {
+                            "jsonrpc": "2.0",
+                            "id": req_id,
+                            "result": {
+                                "content": [{"type": "text", "text": json.dumps(output, indent=2)}]
+                            }
+                        }
+                except Exception as e:
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "result": {
+                            "content": [{"type": "text", "text": f"Error connecting to GraphQL endpoint {graphql_endpoint}: {str(e)}"}],
                             "isError": True
                         }
                     }

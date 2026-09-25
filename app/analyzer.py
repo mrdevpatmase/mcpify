@@ -6,6 +6,7 @@ import httpx
 from app.proxy import proxy_manager
 from app.security import is_public_url, resolve_canonical_base, normalize_url
 from app.openapi_tools import discover_openapi_spec, parse_operations
+from app.graphql_tools import discover_graphql_schema
 
 
 
@@ -488,9 +489,17 @@ async def analyze_agent_url(url: str, request: Optional[Any] = None, api_key: Op
         except Exception:
             openapi_operations = None
 
+        graphql_config = None
+        if not openapi_operations:
+            try:
+                async with httpx.AsyncClient(timeout=6.0) as gql_client:
+                    graphql_config = await discover_graphql_schema(gql_client, normalized_url)
+            except Exception:
+                graphql_config = None
+
         proxy = await proxy_manager.create_proxy(
             target_url=normalized_url, has_mcp=False, api_key=api_key, request=request,
-            openapi_operations=openapi_operations
+            openapi_operations=openapi_operations, graphql_config=graphql_config
         )
         proxy_url = proxy["proxy_url"]
         proxy_id = proxy["proxy_id"]
