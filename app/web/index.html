@@ -438,6 +438,30 @@
       color: var(--text-dim);
     }
 
+    .advanced-auth {
+      margin-top: 12px;
+    }
+
+    .advanced-auth summary {
+      cursor: pointer;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      font-family: 'Inter', sans-serif;
+      list-style: none;
+    }
+
+    .advanced-auth summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .advanced-auth summary:hover {
+      color: var(--text-primary);
+    }
+
+    .advanced-auth .url-input-wrapper {
+      margin-top: 10px;
+    }
+
     .btn-submit {
       background: var(--accent-gradient);
       color: #FFFFFF;
@@ -1024,6 +1048,20 @@
               <span id="btnIcon">⚡</span>
             </button>
           </div>
+
+          <details class="advanced-auth">
+            <summary>🔑 Target requires an API key? (optional)</summary>
+            <div class="url-input-wrapper">
+              <span class="url-icon">🔑</span>
+              <input
+                type="password"
+                id="agentApiKey"
+                class="url-input"
+                placeholder="Bearer token / API key — sent straight to the target, never stored"
+                autocomplete="off"
+              />
+            </div>
+          </details>
         </form>
 
         <div class="presets">
@@ -1265,10 +1303,13 @@
       errorCard.style.display = 'none';
 
       try {
+        const apiKeyEl = document.getElementById('agentApiKey');
+        const apiKey = apiKeyEl && apiKeyEl.value.trim() ? apiKeyEl.value.trim() : null;
+
         const response = await fetch('/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: targetUrl })
+          body: JSON.stringify({ url: targetUrl, api_key: apiKey })
         });
 
         if (!response.ok) {

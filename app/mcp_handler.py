@@ -44,14 +44,17 @@ class PlatformEnum(str, Enum):
 
 class AnalyzeAgentRequest(BaseModel):
     url: str = Field(..., description="The deployed agent URL to analyze (e.g. https://my-agent.onrender.com)")
+    api_key: Optional[str] = Field(None, description="Bearer token to forward to the target's protected endpoints, if it requires auth.")
 
 
 class GenerateConfigRequest(BaseModel):
     url: str = Field(..., description="The deployed agent URL to generate MCP configuration for")
+    api_key: Optional[str] = Field(None, description="Bearer token to forward to the target's protected endpoints, if it requires auth.")
 
 
 class IntegrationGuideRequest(BaseModel):
     url: str = Field(..., description="The deployed agent URL")
+    api_key: Optional[str] = Field(None, description="Bearer token to forward to the target's protected endpoints, if it requires auth.")
     platform: PlatformEnum = Field(
         default=PlatformEnum.claude_desktop,
         description="Target platform: 'claude_desktop', 'cursor', 'windsurf', 'cline', 'vscode', 'claude_code_cli', or 'web'"
@@ -62,12 +65,12 @@ class IntegrationGuideRequest(BaseModel):
 # Core Helper Logic
 # ---------------------------------------------------------
 
-async def run_analysis(url: str, request: Optional[Any] = None) -> Dict[str, Any]:
-    return await analyze_agent_url(url, request=request)
+async def run_analysis(url: str, request: Optional[Any] = None, api_key: Optional[str] = None) -> Dict[str, Any]:
+    return await analyze_agent_url(url, request=request, api_key=api_key)
 
 
-async def run_generation(url: str, request: Optional[Any] = None) -> Dict[str, Any]:
-    analysis = await analyze_agent_url(url, request=request)
+async def run_generation(url: str, request: Optional[Any] = None, api_key: Optional[str] = None) -> Dict[str, Any]:
+    analysis = await analyze_agent_url(url, request=request, api_key=api_key)
     configs = generate_mcp_configurations(
         url=analysis["url"],
         recommended_mcp_endpoint=analysis.get("recommended_mcp_endpoint"),
@@ -81,8 +84,8 @@ async def run_generation(url: str, request: Optional[Any] = None) -> Dict[str, A
     }
 
 
-async def run_guide(url: str, platform: str = "claude_desktop", request: Optional[Any] = None) -> Dict[str, Any]:
-    analysis = await analyze_agent_url(url, request=request)
+async def run_guide(url: str, platform: str = "claude_desktop", request: Optional[Any] = None, api_key: Optional[str] = None) -> Dict[str, Any]:
+    analysis = await analyze_agent_url(url, request=request, api_key=api_key)
     configs = generate_mcp_configurations(
         url=analysis["url"],
         recommended_mcp_endpoint=analysis.get("recommended_mcp_endpoint"),
@@ -250,9 +253,9 @@ async def analyze_agent_endpoint(
     target_url = payload.url if payload else url
     if not target_url:
         raise HTTPException(status_code=400, detail="Missing required 'url' parameter.")
-    
+
     try:
-        return await run_analysis(target_url, request=request)
+        return await run_analysis(target_url, request=request, api_key=payload.api_key if payload else None)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -272,7 +275,7 @@ async def generate_mcp_config_endpoint(
         raise HTTPException(status_code=400, detail="Missing required 'url' parameter.")
 
     try:
-        return await run_generation(target_url, request=request)
+        return await run_generation(target_url, request=request, api_key=payload.api_key if payload else None)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -294,7 +297,7 @@ async def get_integration_guide_endpoint(
         raise HTTPException(status_code=400, detail="Missing required 'url' parameter.")
 
     try:
-        return await run_guide(target_url, target_platform, request=request)
+        return await run_guide(target_url, target_platform, request=request, api_key=payload.api_key if payload else None)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

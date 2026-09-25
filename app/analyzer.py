@@ -407,7 +407,7 @@ def determine_recommended_mcp_endpoint(
     return f"{base_url}/mcp"
 
 
-async def analyze_agent_url(url: str, request: Optional[Any] = None) -> Dict[str, Any]:
+async def analyze_agent_url(url: str, request: Optional[Any] = None, api_key: Optional[str] = None) -> Dict[str, Any]:
     """
     Main analysis function.
     Probes standard endpoints, inspects response signatures,
@@ -459,7 +459,7 @@ async def analyze_agent_url(url: str, request: Optional[Any] = None) -> Dict[str
     has_mcp = False
     if _is_real_endpoint_signal(mcp_probe) or _looks_like_oauth_protected_mcp(mcp_probe):
         async with httpx.AsyncClient(timeout=8.0) as client:
-            has_mcp = await verify_mcp_handshake(client, normalized_url)
+            has_mcp = await verify_mcp_handshake(client, normalized_url, api_key=api_key)
     if not has_mcp:
         # No verification step exists for this path the way
         # verify_mcp_handshake verifies /mcp - _is_real_sse_mcp_signal has
@@ -489,7 +489,7 @@ async def analyze_agent_url(url: str, request: Optional[Any] = None) -> Dict[str
             openapi_operations = None
 
         proxy = await proxy_manager.create_proxy(
-            target_url=normalized_url, has_mcp=False, request=request,
+            target_url=normalized_url, has_mcp=False, api_key=api_key, request=request,
             openapi_operations=openapi_operations
         )
         proxy_url = proxy["proxy_url"]
