@@ -1723,21 +1723,33 @@
     async function checkApiHealth() {
       const dot = document.getElementById('navStatusDot');
       const text = document.getElementById('navStatusText');
+      const indicator = document.getElementById('navStatusIndicator');
       try {
         const res = await fetch('/health', { cache: 'no-store' });
         if (res.ok) {
-          dot.classList.remove('unavailable');
-          text.innerText = 'API available';
+          if (dot) dot.classList.remove('unavailable');
+          if (indicator) indicator.classList.remove('unavailable');
+          if (text) text.innerText = 'API available';
         } else {
-          dot.classList.add('unavailable');
-          text.innerText = 'API unavailable';
+          if (dot) dot.classList.add('unavailable');
+          if (indicator) indicator.classList.add('unavailable');
+          if (text) text.innerText = 'API unavailable';
         }
       } catch (e) {
-        dot.classList.add('unavailable');
-        text.innerText = 'API unavailable';
+        if (dot) dot.classList.add('unavailable');
+        if (indicator) indicator.classList.add('unavailable');
+        if (text) text.innerText = 'API unavailable';
       }
     }
     checkApiHealth();
+
+    // Subtle scroll elevation on navbar
+    window.addEventListener('scroll', () => {
+      const nav = document.querySelector('.navbar');
+      if (nav) {
+        nav.classList.toggle('scrolled', window.scrollY > 8);
+      }
+    }, { passive: true });
 
     function fillUrl(url) {
       const inputEl = document.getElementById('agentUrl');
