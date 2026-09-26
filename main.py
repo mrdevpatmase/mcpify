@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from typing import Dict, Any, Optional
 from urllib.parse import urlencode
 
-from fastapi import FastAPI, Request, HTTPException, Query, Body
+from fastapi import FastAPI, Request, HTTPException, Query, Body, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
@@ -24,7 +24,7 @@ from slowapi.errors import RateLimitExceeded
 from app.mcp_handler import router as mcp_router, mcp
 from app.proxy import proxy_manager
 from app.generator import generate_proxy_config
-from app.security import is_public_url, resolve_canonical_base, normalize_url
+from app.security import is_public_url, resolve_canonical_base, normalize_url, verify_admin_key
 from app.analyzer import verify_mcp_handshake
 from app.openapi_tools import discover_openapi_spec, parse_operations
 from app.graphql_tools import discover_graphql_schema
@@ -200,11 +200,31 @@ class CreateProxyRequest(BaseModel):
     )
 
 
-# 1. Health check & Web UI / Root endpoints
+# 1. Health check, Metrics & Web UI / Root endpoints
 @app.get("/health", summary="Health Check")
 async def health_check():
-    """Health check endpoint returning service status."""
-    return {"status": "ok"}
+    """Health check endpoint returning service status and active proxies count."""
+    proxies = await proxy_manager.list_proxies()
+    return {
+        "status": "ok",
+        "version": "1.1.0",
+        "active_proxies": len(proxies),
+        "scheduler": "running" if scheduler.running else "stopped"
+    }
+
+
+@app.get("/metrics", summary="Operational Metrics")
+async def get_metrics():
+    """Returns operational metrics for production monitoring."""
+    proxies = await proxy_manager.list_proxies()
+    return {
+        "status": "healthy",
+        "active_proxies": len(proxies),
+        "redis_connected": proxy_manager.redis_url is not None,
+        "admin_auth_enabled": bool(os.getenv("ADMIN_API_KEY")),
+        "encryption_enabled": bool(os.getenv("ENCRYPTION_KEY")),
+        "scheduler_running": scheduler.running
+    }
 
 
 @app.get("/", summary="MCPify Web Interface", response_class=HTMLResponse)

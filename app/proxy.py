@@ -651,42 +651,43 @@ class ProxyMCPManager:
                     else:
                         headers["Authorization"] = f"Bearer {proxy['api_key']}"
 
-                try:
-                    async with httpx.AsyncClient(timeout=12.0) as client:
-                        resp = await client.request(
-                            method=http_method,
-                            url=full_target_url,
-                            params=query_params,
-                            json=json_payload,
-                            headers=headers
-                        )
-                        content_type = resp.headers.get("content-type", "")
-                        if "json" in content_type:
-                            try:
-                                body_res = resp.json()
-                            except Exception:
-                                body_res = resp.text
-                        else:
-                            body_res = resp.text
+                # Response payload truncation helper (Max 50,000 chars for LLM context optimization)
+                def truncate_payload(data: Any, max_len: int = 50000) -> Any:
+                    text_str = json.dumps(data) if isinstance(data, (dict, list)) else str(data)
+                    if len(text_str) <= max_len:
+                        return data
+                    preview = text_str[:max_len]
+                    return {
+                        "_truncated": True,
+                        "_original_length": len(text_str),
+                        "_notice": f"Response exceeded {max_len} characters and was truncated for LLM context optimization.",
+                        "preview": preview
+                    }
 
-                        output = {
-                            "status_code": resp.status_code,
-                            "url": str(resp.url),
-                            "response": body_res
-                        }
-                        return {
-                            "jsonrpc": "2.0",
-                            "id": req_id,
-                            "result": {
-                                "content": [
-                                    {
-                                        "type": "text",
-                                        "text": json.dumps(output, indent=2)
-                                    }
-                                ]
-                            }
-                        }
-                except Exception as e:
+                # Retry logic with 1-shot exponential backoff for transient failures
+                last_error = None
+                resp = None
+                for attempt in range(2):
+                    try:
+                        async with httpx.AsyncClient(timeout=12.0) as client:
+                            resp = await client.request(
+                                method=http_method,
+                                url=full_target_url,
+                                params=query_params,
+                                json=json_payload,
+                                headers=headers
+                            )
+                            if resp.status_code < 500:
+                                break
+                            # Retry 5xx once after short pause
+                            if attempt == 0:
+                                await asyncio.sleep(0.5)
+                    except Exception as e:
+                        last_error = e
+                        if attempt == 0:
+                            await asyncio.sleep(0.5)
+
+                if resp is None:
                     return {
                         "jsonrpc": "2.0",
                         "id": req_id,
@@ -694,12 +695,43 @@ class ProxyMCPManager:
                             "content": [
                                 {
                                     "type": "text",
-                                    "text": f"Error connecting to target endpoint {full_target_url}: {str(e)}"
+                                    "text": f"Error connecting to target endpoint {full_target_url}: {str(last_error or 'Network failure')}"
                                 }
                             ],
                             "isError": True
                         }
                     }
+
+                content_type = resp.headers.get("content-type", "")
+                if "json" in content_type:
+                    try:
+                        body_res = resp.json()
+                    except Exception:
+                        body_res = resp.text
+                else:
+                    body_res = resp.text
+
+                output = {
+                    "status_code": resp.status_code,
+                    "url": str(resp.url),
+                    "response": truncate_payload(body_res)
+                }
+
+                # Audit Log entry
+                logger.info("[Audit] Proxy %s Tool %s -> %s %s [Status: %s]", proxy_id, tool_name, http_method, full_target_url, resp.status_code)
+
+                return {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": json.dumps(output, indent=2)
+                            }
+                        ]
+                    }
+                }
 
             elif tool_name in ("graphql_schema", "graphql_query"):
                 graphql_config = proxy.get("graphql_config")

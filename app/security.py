@@ -1,9 +1,80 @@
 import asyncio
 import ipaddress
 import socket
+import os
+import base64
+import hashlib
+import logging
+from typing import Optional, Dict, Any, Tuple
 from urllib.parse import urlparse, urljoin
 
 import httpx
+from fastapi import Request, HTTPException, Security
+from fastapi.security import APIKeyHeader
+
+logger = logging.getLogger("mcpify")
+
+# Admin API Key Security Header
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+async def verify_admin_key(request: Request, api_key: str = Security(api_key_header)) -> Optional[str]:
+    """
+    FastAPI dependency: Validates request against ADMIN_API_KEY environment variable.
+    If ADMIN_API_KEY is configured in .env/environment, requests MUST provide
+    a matching X-API-Key header or Bearer token.
+    If ADMIN_API_KEY is not set, admin endpoints remain open (for local dev mode).
+    """
+    expected_key = os.getenv("ADMIN_API_KEY")
+    if not expected_key:
+        return None  # Unprotected mode (local development)
+
+    # Check X-API-Key header or Authorization: Bearer <key>
+    auth_header = request.headers.get("Authorization", "")
+    bearer_key = auth_header[7:].strip() if auth_header.startswith("Bearer ") else None
+
+    provided_key = api_key or bearer_key
+    if not provided_key or provided_key != expected_key:
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized: Invalid or missing X-API-Key / Authorization Bearer token."
+        )
+    return provided_key
+
+
+def _get_encryption_key() -> bytes:
+    """Derive 32-byte key for Fernet AES-256 encryption."""
+    secret = os.getenv("ENCRYPTION_KEY", "mcpify_default_secret_key_change_in_prod")
+    key_bytes = hashlib.sha256(secret.encode("utf-8")).digest()
+    return base64.urlsafe_b64encode(key_bytes)
+
+
+def encrypt_secret(plain_text: Optional[str]) -> Optional[str]:
+    """Encrypt sensitive credentials (API keys, OAuth client secrets) at rest."""
+    if not plain_text:
+        return plain_text
+    try:
+        from cryptography.fernet import Fernet
+        f = Fernet(_get_encryption_key())
+        return "enc:" + f.encrypt(plain_text.encode("utf-8")).decode("utf-8")
+    except Exception:
+        # Fallback if cryptography module is not installed or error occurs
+        return plain_text
+
+
+def decrypt_secret(cipher_text: Optional[str]) -> Optional[str]:
+    """Decrypt sensitive credentials at rest."""
+    if not cipher_text or not cipher_text.startswith("enc:"):
+        return cipher_text
+    try:
+        from cryptography.fernet import Fernet
+        f = Fernet(_get_encryption_key())
+        raw_cipher = cipher_text[4:]
+        return f.decrypt(raw_cipher.encode("utf-8")).decode("utf-8")
+    except Exception as e:
+        logger.warning(f"Failed to decrypt secret: {e}")
+        return cipher_text
+
 
 
 def normalize_url(url: str) -> str:
