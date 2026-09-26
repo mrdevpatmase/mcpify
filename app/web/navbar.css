@@ -1,38 +1,71 @@
 /* ---------------------------------------------------------
-   MCPify Navigation Bar
-   Modern, Sleek Sticky Header with Glassmorphism
+   MCPify Navbar Styles
+   Ultra-Light, Nearly Transparent Water Drop Navbar
    --------------------------------------------------------- */
-.navbar {
-  position: sticky;
-  top: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
-  z-index: 1000;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02);
-  transition: background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+/* Let the sticky navbar stick relative to the page, not its wrapper */
+#navbar-container {
+  display: contents;
 }
 
-/* Subtle elevation when scrolled */
-.navbar.scrolled {
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
-  border-bottom-color: rgba(0, 0, 0, 0.09);
+.navbar-outer {
+  position: sticky;
+  top: 18px;
+  margin-top: 18px;
+  z-index: 1000;
+  padding: 0 20px;
+  width: 100%;
+}
+
+.navbar {
+  max-width: 1260px;
+  margin: 0 auto;
+  border-radius: var(--radius-full, 9999px);
+  /* Very light, high-transparency watery surface */
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.32) 0%,
+      rgba(255, 255, 255, 0.10) 50%,
+      rgba(255, 255, 255, 0.24) 100%);
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  /* Liquid water surface tension edge */
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  outline: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 10px 30px -8px rgba(0, 0, 0, 0.06),
+    0 3px 10px -2px rgba(0, 0, 0, 0.03),
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.03);
+  padding: 10px 22px;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-normal, 0.25s ease);
+}
+
+/* Water droplet top curved light reflection sheen */
+.navbar::before {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 14px;
+  right: 14px;
+  height: 48%;
+  background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.65) 0%,
+      rgba(255, 255, 255, 0) 100%);
+  border-radius: var(--radius-full, 9999px) var(--radius-full, 9999px) 40px 40px;
+  pointer-events: none;
 }
 
 .navbar-inner {
-  height: 68px;
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  z-index: 2;
 }
 
-/* Brand Section */
+/* WhatsApp x Meta style branding: MCPify from aiKart */
 .brand-wrap {
   display: flex;
   align-items: center;
@@ -40,37 +73,12 @@
 }
 
 .brand-identity {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-  transition: opacity 0.18s ease;
-}
-
-.brand-identity:hover {
-  opacity: 0.9;
-}
-
-.brand-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  background: rgba(27, 77, 62, 0.08);
-  border: 1px solid rgba(27, 77, 62, 0.16);
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: var(--brand-green, #1B4D3E);
-  transition: all 0.2s ease;
-}
-
-.brand-identity:hover .brand-icon {
-  background: rgba(27, 77, 62, 0.14);
-  transform: translateY(-1px);
+  text-decoration: none;
 }
 
 .brand-name {
-  font-family: var(--font-title, 'Red Hat Display', sans-serif);
   font-size: 1.35rem;
   font-weight: 800;
   letter-spacing: -0.5px;
@@ -78,200 +86,120 @@
   line-height: 1;
 }
 
-.brand-divider {
-  width: 1px;
-  height: 22px;
-  background: rgba(0, 0, 0, 0.12);
-}
-
-.ecosystem-badge {
+.meta-style-by {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  text-decoration: none;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: background-color 0.18s ease, transform 0.18s ease;
+  padding-left: 12px;
+  border-left: 1.5px solid rgba(0, 0, 0, 0.12);
 }
 
-.ecosystem-badge:hover {
-  background: rgba(0, 0, 0, 0.04);
-  transform: translateY(-1px);
-}
-
-.ecosystem-by {
-  font-size: 0.76rem;
+.by-text {
+  font-size: 0.72rem;
   font-weight: 600;
-  color: #6B7280;
-  letter-spacing: 0.2px;
+  color: #8C96A5;
+  text-transform: lowercase;
+  letter-spacing: 0.3px;
+}
+
+.aikart-logo-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }
 
 .aikart-logo-img {
-  height: 19px;
+  height: 20px;
   width: auto;
   display: block;
   object-fit: contain;
-  vertical-align: middle;
+  transition: transform var(--transition-fast, 0.18s ease), opacity var(--transition-fast, 0.18s ease);
 }
 
-/* Nav Actions on Right */
+.aikart-logo-img:hover {
+  transform: translateY(-1px);
+  opacity: 0.85;
+}
+
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
 }
 
-/* API Status Indicator Badge */
 .status-indicator {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #15803D;
-  background: #F0FDF4;
-  border: 1px solid rgba(22, 101, 52, 0.2);
-  padding: 6px 12px;
-  border-radius: 9999px;
-  line-height: 1;
-  transition: all 0.2s ease;
-  user-select: none;
-}
-
-.status-dot-wrapper {
-  position: relative;
-  width: 8px;
-  height: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  gap: 7px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--text-muted, #4B5563);
 }
 
 .status-dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: #16A34A;
-  position: relative;
-  z-index: 2;
-  transition: background-color 0.2s ease;
+  background: var(--status-green, #166534);
+  box-shadow: 0 0 0 3px rgba(22, 101, 52, 0.15);
 }
 
-.status-dot-pulse {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: #16A34A;
-  opacity: 0.75;
-  animation: statusPulse 2s cubic-bezier(0, 0, 0.2, 1) infinite;
-  z-index: 1;
+.status-dot.unavailable {
+  background: var(--status-red, #DC2626);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
 }
 
-@keyframes statusPulse {
-  0% {
-    transform: scale(0.95);
-    opacity: 0.8;
-  }
-  70%, 100% {
-    transform: scale(2.5);
-    opacity: 0;
-  }
-}
-
-.status-indicator.unavailable {
-  color: #B91C1C;
-  background: #FEF2F2;
-  border-color: rgba(220, 38, 38, 0.2);
-}
-
-.status-indicator.unavailable .status-dot,
-.status-indicator.unavailable .status-dot-pulse {
-  background: #DC2626;
-}
-
-/* Regular Nav Links */
 .nav-item-link {
   font-size: 0.88rem;
   font-weight: 500;
-  color: #4B5563;
-  padding: 7px 12px;
-  border-radius: 8px;
-  text-decoration: none;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  color: var(--text-muted, #4B5563);
+  transition: color var(--transition-fast, 0.18s ease);
 }
 
 .nav-item-link:hover {
-  color: #111827;
-  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-main, #111827);
   text-decoration: none;
 }
 
-/* Primary CTA Link Button */
+/* Water droplet glass button */
 .nav-aikart-link {
-  background: #111827;
-  color: #FFFFFF !important;
-  padding: 8px 16px;
-  border-radius: 9999px;
-  font-size: 0.84rem;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  outline: 1px solid rgba(0, 0, 0, 0.04);
+  padding: 6px 14px;
+  border-radius: var(--radius-full, 9999px);
+  font-size: 0.82rem;
   font-weight: 600;
+  color: var(--text-main, #111827);
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  text-decoration: none;
-  border: 1px solid #111827;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.9), 0 3px 10px rgba(0, 0, 0, 0.03);
+  backdrop-filter: blur(6px);
+  transition: all var(--transition-fast, 0.18s ease);
 }
 
 .nav-aikart-link:hover {
-  background: var(--brand-green, #1B4D3E);
+  background: rgba(255, 255, 255, 0.85);
   border-color: var(--brand-green, #1B4D3E);
-  color: #FFFFFF !important;
+  color: var(--brand-green, #1B4D3E);
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(27, 77, 62, 0.28);
 }
 
-.nav-aikart-link .external-arrow {
-  transition: transform 0.2s ease;
-}
-
-.nav-aikart-link:hover .external-arrow {
-  transform: translate(2px, -2px);
-}
-
-/* Mobile Responsiveness */
-@media (max-width: 768px) {
-  .navbar-inner {
-    height: 60px;
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .navbar-outer {
+    padding: 0 12px;
+    top: 12px;
+    margin-top: 12px;
   }
-  
-  .brand-name {
-    font-size: 1.2rem;
+  .navbar {
+    padding: 8px 14px;
   }
-  
-  .brand-divider,
-  .ecosystem-badge {
-    display: none;
-  }
-  
   .nav-actions {
-    gap: 10px;
+    gap: 12px;
   }
-  
   .status-indicator {
-    padding: 4px 8px;
-    font-size: 0.75rem;
-  }
-  
-  .nav-item-link {
     display: none;
-  }
-  
-  .nav-aikart-link {
-    padding: 6px 12px;
-    font-size: 0.8rem;
   }
 }
