@@ -1,0 +1,198 @@
+/* ---------------------------------------------------------
+   MCPify Navbar Styles
+   Ultra-Light, Nearly Transparent Water Drop Navbar
+   --------------------------------------------------------- */
+.navbar-outer {
+  position: sticky;
+  top: 14px;
+  z-index: 1000;
+  padding: 0 20px;
+  width: 100%;
+}
+
+.navbar {
+  max-width: 1260px;
+  margin: 0 auto;
+  border-radius: var(--radius-full, 9999px);
+  /* Very light, high-transparency watery surface */
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.32) 0%,
+      rgba(255, 255, 255, 0.10) 50%,
+      rgba(255, 255, 255, 0.24) 100%);
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  /* Liquid water surface tension edge */
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  outline: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 10px 30px -8px rgba(0, 0, 0, 0.06),
+    0 3px 10px -2px rgba(0, 0, 0, 0.03),
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.03);
+  padding: 10px 22px;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-normal, 0.25s ease);
+}
+
+/* Water droplet top curved light reflection sheen */
+.navbar::before {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 14px;
+  right: 14px;
+  height: 48%;
+  background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.65) 0%,
+      rgba(255, 255, 255, 0) 100%);
+  border-radius: var(--radius-full, 9999px) var(--radius-full, 9999px) 40px 40px;
+  pointer-events: none;
+}
+
+.navbar-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  z-index: 2;
+}
+
+/* WhatsApp x Meta style branding: MCPify from aiKart */
+.brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-identity {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.brand-name {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #111827;
+  line-height: 1;
+}
+
+.meta-style-by {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding-left: 12px;
+  border-left: 1.5px solid rgba(0, 0, 0, 0.12);
+}
+
+.by-text {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #8C96A5;
+  text-transform: lowercase;
+  letter-spacing: 0.3px;
+}
+
+.aikart-logo-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.aikart-logo-img {
+  height: 20px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+  transition: transform var(--transition-fast, 0.18s ease), opacity var(--transition-fast, 0.18s ease);
+}
+
+.aikart-logo-img:hover {
+  transform: translateY(-1px);
+  opacity: 0.85;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--text-muted, #4B5563);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-green, #166534);
+  box-shadow: 0 0 0 3px rgba(22, 101, 52, 0.15);
+}
+
+.status-dot.unavailable {
+  background: var(--status-red, #DC2626);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.nav-item-link {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-muted, #4B5563);
+  transition: color var(--transition-fast, 0.18s ease);
+}
+
+.nav-item-link:hover {
+  color: var(--text-main, #111827);
+  text-decoration: none;
+}
+
+/* Water droplet glass button */
+.nav-aikart-link {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  outline: 1px solid rgba(0, 0, 0, 0.04);
+  padding: 6px 14px;
+  border-radius: var(--radius-full, 9999px);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main, #111827);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.9), 0 3px 10px rgba(0, 0, 0, 0.03);
+  backdrop-filter: blur(6px);
+  transition: all var(--transition-fast, 0.18s ease);
+}
+
+.nav-aikart-link:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: var(--brand-green, #1B4D3E);
+  color: var(--brand-green, #1B4D3E);
+  transform: translateY(-1px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .navbar-outer {
+    padding: 0 12px;
+    top: 8px;
+  }
+  .navbar {
+    padding: 8px 14px;
+  }
+  .nav-actions {
+    gap: 12px;
+  }
+  .status-indicator {
+    display: none;
+  }
+}

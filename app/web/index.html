@@ -1,61 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MCPify — Model Context Protocol Bridge & Config Generator</title>
-  <meta name="description" content="Turn any deployed AI Agent or REST API into a standardized Model Context Protocol (MCP) server for Claude Desktop, Cursor, Windsurf, Cline, VS Code, and the Claude Code CLI.">
-  
-  <!-- Fonts: Inter & JetBrains Mono -->
+  <title>MCPify — Model Context Protocol Bridge | By Aikart.co</title>
+  <meta name="description"
+    content="Generate ready-to-use Model Context Protocol (MCP) configs for any AI agent or REST API. Built by Aikart (aikart.co).">
+
+  <!-- Modern Typography: Red Hat Display (Titles), Poppins (Desc/Body), JetBrains Mono (Code) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Red+Hat+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <!-- MCPify Navbar Stylesheet -->
+  <link rel="stylesheet" href="/navbar.css">
 
   <style>
     /* ---------------------------------------------------------
-       CSS DESIGN SYSTEM & TOKENS (Light + Teal/Blue Accent)
+       DESIGN SYSTEM & TOKENS
+       - Crisp pure white canvas (#FFFFFF)
+       - Ultra-light, highly transparent water drop navbar (low blur)
+       - 35px border radius curves
+       - Watery transparent nude filter on the 3 cards (green, orange, red)
+       - Aikart.co brand presence
        --------------------------------------------------------- */
     :root {
+      /* Pure White Canvas */
       --bg-canvas: #FFFFFF;
-      --bg-card: #F8F9FB;
-      --bg-card-hover: #F1F3F6;
+      --bg-card: #FFFFFF;
+      --bg-card-hover: #FAFAFA;
       --bg-input: #FFFFFF;
-      --bg-tertiary: #F1F3F6;
+      --bg-tertiary: #F3F4F6;
 
-      --border-subtle: #E2E5EA;
-      --border-accent: #0891A8;
-      --border-hover: #C4C9D2;
+      /* Brand Accents */
+      --brand-green: #1B4D3E;
+      --brand-green-hover: #13392E;
+      --brand-green-light: rgba(27, 77, 62, 0.08);
 
-      --accent-cyan: #0891A8;
-      --accent-blue: #0052CC;
-      --accent-gradient: linear-gradient(135deg, #0891A8 0%, #0052CC 100%);
-      --accent-glow: rgba(8, 145, 168, 0.15);
-      --accent-glow-strong: rgba(8, 145, 168, 0.3);
+      --status-green: #166534;
+      --status-amber: #D97706;
+      --status-red: #DC2626;
 
-      --text-primary: #14181F;
-      --text-secondary: #57606A;
-      --text-dim: #8B949E;
+      /* Typography */
+      --font-title: 'Red Hat Display', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-desc: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+      --text-main: #111827;
+      --text-muted: #4B5563;
+      --text-dim: #9CA3AF;
       --text-link: #0969DA;
 
-      --code-bg: #F6F8FA;
-      --code-green: #1A7F37;
-      --code-cyan: #0969DA;
-      --code-purple: #8250DF;
-      --code-orange: #BC4C00;
-
-      --status-green: #1A7F37;
-      --status-yellow: #9A6700;
-      --status-red: #CF222E;
-
-      --radius-sm: 6px;
-      --radius-md: 10px;
-      --radius-lg: 16px;
+      /* Borders & Radius */
+      --border-subtle: #E5E7EB;
+      --border-card: #E5E7EB;
+      --radius-35: 35px;
+      --radius-md: 14px;
+      --radius-sm: 8px;
       --radius-full: 9999px;
 
-      --shadow-card: 0 1px 2px rgba(20, 24, 31, 0.06), 0 8px 24px rgba(20, 24, 31, 0.06);
-      --shadow-glow: 0 0 25px rgba(8, 145, 168, 0.12);
+      /* Shadows */
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+      --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
 
-      --transition-fast: 0.15s ease;
+      --transition-fast: 0.18s ease;
       --transition-normal: 0.25s ease;
     }
 
@@ -66,18 +75,48 @@
     }
 
     body {
-      background-color: var(--bg-canvas);
-      color: var(--text-primary);
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #FFFFFF;
+      color: var(--text-main);
+      font-family: var(--font-desc);
       line-height: 1.6;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       overflow-x: hidden;
-      background-image:
-        radial-gradient(circle at 50% 0%, rgba(8, 145, 168, 0.06) 0%, transparent 50%),
-        radial-gradient(circle at 100% 100%, rgba(0, 82, 204, 0.04) 0%, transparent 40%);
-      background-attachment: fixed;
+    }
+
+    /* Titles & Headings: Red Hat Display */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    .brand-name,
+    .hero-title,
+    .compat-title,
+    .nude-card-title-row,
+    .aikart-showcase-title,
+    .card-topbar-title,
+    .input-label,
+    .proxy-banner-title,
+    .guide-title,
+    .loading-title,
+    .error-card-title {
+      font-family: var(--font-title);
+    }
+
+    /* Descriptions & Subtitles: Poppins */
+    .hero-desc,
+    .compat-subtitle,
+    .card-footnote,
+    .nude-card-sublabel,
+    .nude-feature-item,
+    .aikart-showcase-desc,
+    .step-text,
+    .loading-desc,
+    .hero-aikart-note {
+      font-family: var(--font-desc);
     }
 
     .mono {
@@ -85,614 +124,667 @@
     }
 
     a {
-      color: var(--text-link);
+      color: inherit;
       text-decoration: none;
       transition: color var(--transition-fast);
     }
 
-    a:hover {
-      text-decoration: underline;
-    }
-
-    /* Layout Containers */
+    /* Container */
     .container {
-      max-width: 1100px;
+      max-width: 1260px;
       margin: 0 auto;
       padding: 0 24px;
       width: 100%;
     }
 
-    /* Navbar */
-    .navbar {
-      border-bottom: 1px solid var(--border-subtle);
-      background: rgba(255, 255, 255, 0.85);
-      backdrop-filter: blur(12px);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      padding: 16px 0;
+    /* ---------------------------------------------------------
+       NAVBAR STYLES (Loaded from /navbar.css)
+       --------------------------------------------------------- */
+
+    /* ---------------------------------------------------------
+       HERO SECTION (2 Columns)
+       --------------------------------------------------------- */
+    main {
+      flex: 1;
+      padding: 44px 0 60px 0;
     }
 
-    .navbar-inner {
+    .hero-split {
+      display: grid;
+      grid-template-columns: 0.95fr 1.35fr;
+      gap: 44px;
+      align-items: center;
+      margin-bottom: 56px;
+    }
+
+    /* Hero Left */
+    .hero-left {
+      padding-top: 10px;
+    }
+
+    .hero-tagline {
+      color: var(--brand-green);
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      margin-bottom: 16px;
+      display: inline-block;
+    }
+
+    .hero-title {
+      font-size: 3.1rem;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      line-height: 1.12;
+      color: #111827;
+      margin-bottom: 20px;
+    }
+
+    .hero-desc {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 520px;
+      margin-bottom: 30px;
+    }
+
+    .client-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .client-pill {
+      background: #FFFFFF;
+      border: 1px solid var(--border-subtle);
+      color: #374151;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: all var(--transition-fast);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+
+    .client-pill .brand-logo {
+      flex-shrink: 0;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    .client-pill:hover {
+      border-color: var(--brand-green);
+      color: var(--brand-green);
+      transform: translateY(-1px);
+    }
+
+
+
+    /* Hero Right: Large Connection Card (Radius 35px) - Gradient Glass Theme */
+    .hero-card {
+      background:
+        radial-gradient(110% 110% at 92% 12%, rgba(209, 250, 229, 0.65) 0%, rgba(240, 253, 244, 0.25) 45%, transparent 70%),
+        radial-gradient(100% 100% at 8% 88%, rgba(224, 231, 255, 0.50) 0%, rgba(241, 245, 249, 0.25) 50%, transparent 75%),
+        linear-gradient(140deg, #FFFFFF 0%, #F4FAF7 35%, #EEF4F8 70%, #E2EFE7 100%);
+      border: 1.5px solid rgba(27, 77, 62, 0.16);
+      outline: 1px solid rgba(255, 255, 255, 0.9);
+      border-radius: var(--radius-35);
+      padding: 52px 40px;
+      backdrop-filter: blur(14px) saturate(140%);
+      -webkit-backdrop-filter: blur(14px) saturate(140%);
+      box-shadow:
+        0 20px 48px -12px rgba(27, 77, 62, 0.08),
+        0 6px 18px -4px rgba(15, 23, 42, 0.03),
+        inset 0 2px 4px 0 rgba(255, 255, 255, 0.95),
+        inset 0 -2px 6px 0 rgba(27, 77, 62, 0.04);
+      position: relative;
+      overflow: hidden;
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .hero-card:hover {
+      box-shadow:
+        0 26px 56px -12px rgba(27, 77, 62, 0.14),
+        inset 0 2px 4px 0 rgba(255, 255, 255, 1);
+    }
+
+    /* Water droplet top gloss arc sheen */
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 42%;
+      background: linear-gradient(180deg,
+          rgba(255, 255, 255, 0.70) 0%,
+          rgba(255, 255, 255, 0.20) 60%,
+          rgba(255, 255, 255, 0) 100%);
+      border-radius: var(--radius-35) var(--radius-35) 0 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Top specular rim highlight */
+    .hero-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 32px;
+      right: 32px;
+      height: 2px;
+      background: linear-gradient(90deg,
+          transparent,
+          rgba(255, 255, 255, 0.95) 20%,
+          rgba(255, 255, 255, 1) 50%,
+          rgba(27, 77, 62, 0.3) 80%,
+          transparent);
+      border-radius: var(--radius-full);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .card-topbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      font-size: 0.85rem;
+      margin-bottom: 26px;
+      position: relative;
+      z-index: 2;
     }
 
-    .brand {
-      display: flex;
+    .card-topbar-title {
+      font-weight: 600;
+      color: #375347;
+      letter-spacing: -0.2px;
+    }
+
+    .card-topbar-status {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--brand-green);
+      display: inline-flex;
       align-items: center;
-      gap: 12px;
-      font-weight: 700;
-      font-size: 1.25rem;
-      color: var(--text-primary);
-      letter-spacing: -0.5px;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(27, 77, 62, 0.16);
+      padding: 3px 12px;
+      border-radius: var(--radius-full);
+      box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.95), 0 2px 6px rgba(27, 77, 62, 0.04);
+      backdrop-filter: blur(8px);
     }
 
-    .brand-icon {
-      width: 34px;
-      height: 34px;
-      background: var(--accent-gradient);
-      border-radius: var(--radius-sm);
+    .card-topbar-status::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10B981;
+      box-shadow: 0 0 0 2.5px rgba(16, 185, 129, 0.25);
+      display: inline-block;
+    }
+
+    .input-label {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #14352B;
+      margin-bottom: 12px;
+      display: block;
+      position: relative;
+      z-index: 2;
+    }
+
+    .input-action-row {
       display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .agent-input {
+      flex: 1;
+      min-width: 0;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1.5px solid rgba(27, 77, 62, 0.20);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      font-family: var(--font-desc);
+      font-size: 0.88rem;
+      color: var(--text-main);
+      outline: none;
+      backdrop-filter: blur(8px);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 8px rgba(27, 77, 62, 0.03);
+      transition: all var(--transition-fast);
+      overflow-x: auto;
+    }
+
+    .agent-input:focus {
+      background: #FFFFFF;
+      border-color: var(--brand-green);
+      box-shadow: 0 0 0 3px rgba(27, 77, 62, 0.14), inset 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    .agent-input::placeholder {
+      color: #8C9D95;
+      font-family: var(--font-desc);
+      font-size: 0.85rem;
+    }
+
+    .btn-generate {
+      background: var(--brand-green);
+      color: #FFFFFF;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 16px 26px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      color: #000;
-      font-size: 1.1rem;
-      font-weight: 900;
-      box-shadow: 0 0 15px var(--accent-glow);
+      gap: 8px;
+      white-space: nowrap;
+      transition: all var(--transition-fast);
+      box-shadow: 0 3px 10px rgba(27, 77, 62, 0.25);
     }
 
-    .nav-links {
+    .btn-generate:hover {
+      background: var(--brand-green-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 5px 16px rgba(27, 77, 62, 0.32);
+    }
+
+    .btn-generate:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Quick Try Chips */
+    .quick-try-row {
       display: flex;
-      align-items: center;
-      gap: 20px;
-    }
-
-    .nav-link {
-      color: var(--text-secondary);
-      font-size: 0.9rem;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .nav-link:hover {
-      color: var(--accent-cyan);
-      text-decoration: none;
-    }
-
-    .badge-status {
-      background: rgba(63, 185, 80, 0.1);
-      color: var(--status-green);
-      border: 1px solid rgba(63, 185, 80, 0.3);
-      padding: 4px 10px;
-      border-radius: var(--radius-full);
-      font-size: 0.75rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .badge-status::before {
-      content: "";
-      width: 6px;
-      height: 6px;
-      background: var(--status-green);
-      border-radius: 50%;
-      box-shadow: 0 0 8px var(--status-green);
-    }
-
-    /* Main Section */
-    main {
-      flex: 1;
-      padding: 48px 0;
-    }
-
-    /* Hero Section */
-    .hero {
-      text-align: center;
-      max-width: 800px;
-      margin: 0 auto 48px auto;
-    }
-
-    .hero-tag {
-      display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: rgba(8, 145, 168, 0.08);
-      border: 1px solid rgba(8, 145, 168, 0.25);
-      color: var(--accent-cyan);
-      padding: 6px 16px;
-      border-radius: var(--radius-full);
-      font-size: 0.8rem;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      margin-bottom: 20px;
-      box-shadow: 0 0 20px rgba(8, 145, 168, 0.1);
-    }
-
-    .hero h1 {
-      font-size: 2.75rem;
-      font-weight: 800;
-      letter-spacing: -1px;
-      line-height: 1.2;
-      margin-bottom: 16px;
-      background: linear-gradient(180deg, #14181F 0%, #57606A 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .hero p {
-      font-size: 1.1rem;
-      color: var(--text-secondary);
-      max-width: 680px;
-      margin: 0 auto;
-    }
-
-    /* Agent URL Input Box */
-    .input-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      box-shadow: var(--shadow-card);
-      position: relative;
-      transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
-      margin-bottom: 40px;
-    }
-
-    .input-card:focus-within {
-      border-color: var(--accent-cyan);
-      box-shadow: var(--shadow-card), var(--shadow-glow);
-    }
-
-    .compat-section {
-      margin-bottom: 40px;
-    }
-
-    .compat-title {
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 4px;
-    }
-
-    .compat-subtitle {
-      font-size: 0.8rem;
-      color: var(--text-dim);
-      margin-bottom: 12px;
-      line-height: 1.5;
-    }
-
-    .compat-link-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      font-family: 'JetBrains Mono', monospace;
-      padding: 3px 9px;
-      border-radius: var(--radius-full);
-      margin-bottom: 12px;
-      width: fit-content;
-    }
-
-    .compat-link-badge.yes {
-      background: rgba(26, 127, 55, 0.1);
-      color: var(--status-green);
-    }
-
-    .compat-link-badge.limited {
-      background: rgba(154, 103, 0, 0.1);
-      color: var(--status-yellow);
-    }
-
-    .compat-link-badge.no {
-      background: rgba(207, 34, 46, 0.1);
-      color: var(--status-red);
-    }
-
-    .compat-examples {
-      display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 14px;
-      padding-top: 14px;
-      border-top: 1px solid var(--border-subtle);
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 2;
     }
 
-    .compat-examples-label {
-      width: 100%;
-      font-size: 0.72rem;
-      color: var(--text-dim);
-      margin-bottom: 2px;
+    .quick-try-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #4B685C;
     }
 
-    .compat-example-chip {
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      padding: 3px 10px;
+    .quick-chip {
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(27, 77, 62, 0.16);
+      color: #1A3D31;
+      padding: 4px 11px;
       border-radius: var(--radius-full);
-      font-size: 0.72rem;
+      font-size: 0.75rem;
       font-family: 'JetBrains Mono', monospace;
       cursor: pointer;
+      backdrop-filter: blur(8px);
+      box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.95), 0 2px 6px rgba(27, 77, 62, 0.04);
       transition: all var(--transition-fast);
     }
 
-    .compat-example-chip:hover {
-      border-color: var(--accent-cyan);
-      color: var(--accent-cyan);
-      background: rgba(8, 145, 168, 0.05);
+    .quick-chip:hover {
+      background: #FFFFFF;
+      border-color: var(--brand-green);
+      color: var(--brand-green);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 8px rgba(27, 77, 62, 0.14);
+    }
+
+    .card-divider-dotted {
+      border-top: 1px dashed rgba(27, 77, 62, 0.18);
+      margin: 24px 0;
+      position: relative;
+      z-index: 2;
+    }
+
+    .card-footnote {
+      font-size: 0.82rem;
+      color: #4A6358;
+      line-height: 1.65;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* ---------------------------------------------------------
+       THREE CARDS: WATERY TRANSPARENT + NUDE TINT FILTER
+       - Card 1: Nude-Green Watery Glass
+       - Card 2: Nude-Orange/Amber Watery Glass
+       - Card 3: Nude-Red/Rose Watery Glass
+       - Border radius: 35px
+       - Water droplet caustic reflections
+       --------------------------------------------------------- */
+    .compat-section {
+      margin-bottom: 56px;
+    }
+
+    .compat-header {
+      margin-bottom: 24px;
+    }
+
+    .compat-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.6px;
+      color: #111827;
+      margin-bottom: 6px;
+    }
+
+    .compat-subtitle {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      max-width: 720px;
+      line-height: 1.5;
     }
 
     .compat-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
+      gap: 20px;
     }
 
-    @media (max-width: 860px) {
+    @media (max-width: 920px) {
       .compat-grid {
         grid-template-columns: 1fr;
       }
+
+      .hero-split {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-title {
+        font-size: 2.4rem;
+      }
     }
 
-    .compat-col {
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-top: 3px solid var(--status-green);
-      border-radius: var(--radius-lg);
-      padding: 18px 20px;
-    }
-
-    .compat-col.warn {
-      border-top-color: var(--status-yellow);
-    }
-
-    .compat-col.no {
-      border-top-color: var(--status-red);
-    }
-
-    .compat-col-head {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: 600;
-      font-size: 0.9rem;
-      margin-bottom: 10px;
-      color: var(--text-primary);
-    }
-
-    .compat-list {
-      list-style: none;
+    /* BASE WATERY TRANSPARENT NUDE CARD */
+    .nude-card {
+      border-radius: var(--radius-35);
+      padding: 28px 24px;
+      position: relative;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      justify-content: space-between;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      outline: 1px solid rgba(0, 0, 0, 0.03);
+      box-shadow:
+        0 12px 32px -8px rgba(0, 0, 0, 0.05),
+        0 4px 12px rgba(0, 0, 0, 0.02),
+        inset 0 2px 4px 0 rgba(255, 255, 255, 0.95),
+        inset 0 -2px 4px 0 rgba(0, 0, 0, 0.02);
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
     }
 
-    .compat-list li {
-      font-size: 0.82rem;
-      color: var(--text-secondary);
-      line-height: 1.5;
-      padding-left: 14px;
-      position: relative;
+    .nude-card:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        0 18px 40px -10px rgba(0, 0, 0, 0.08),
+        inset 0 2px 4px 0 rgba(255, 255, 255, 1);
     }
 
-    .compat-list li::before {
-      content: "\2022";
+    /* Water droplet top gloss arc sheen */
+    .nude-card::after {
+      content: "";
       position: absolute;
+      top: 0;
       left: 0;
-      color: var(--text-dim);
-    }
-
-    .compat-list li strong {
-      color: var(--text-primary);
-      font-weight: 600;
-    }
-
-    .input-group {
-      display: flex;
-      gap: 12px;
-      position: relative;
-    }
-
-    .url-input-wrapper {
-      position: relative;
-      flex: 1;
-      display: flex;
-      align-items: center;
-    }
-
-    .url-icon {
-      position: absolute;
-      left: 16px;
-      color: var(--text-dim);
-      font-size: 1.1rem;
+      right: 0;
+      height: 38%;
+      background: linear-gradient(180deg,
+          rgba(255, 255, 255, 0.5) 0%,
+          rgba(255, 255, 255, 0) 100%);
+      border-radius: var(--radius-35) var(--radius-35) 0 0;
       pointer-events: none;
     }
 
-    .url-input {
-      width: 100%;
-      background: var(--bg-input);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      padding: 16px 16px 16px 44px;
-      color: var(--text-primary);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.95rem;
-      transition: all var(--transition-fast);
-      outline: none;
+    /* CARD 1: WATERY NUDE-GREEN FILTER */
+    .nude-card.card-green {
+      background: linear-gradient(160deg,
+          rgba(240, 248, 242, 0.72) 0%,
+          rgba(235, 245, 238, 0.40) 50%,
+          rgba(244, 250, 246, 0.65) 100%);
+      border: 1.5px solid rgba(34, 139, 34, 0.18);
     }
 
-    .url-input:focus {
-      border-color: var(--accent-cyan);
-      background: #FFFFFF;
+    /* CARD 2: WATERY NUDE-ORANGE/AMBER FILTER */
+    .nude-card.card-amber {
+      background: linear-gradient(160deg,
+          rgba(255, 249, 240, 0.72) 0%,
+          rgba(254, 244, 230, 0.40) 50%,
+          rgba(255, 250, 242, 0.65) 100%);
+      border: 1.5px solid rgba(217, 119, 6, 0.18);
     }
 
-    .url-input::placeholder {
-      color: var(--text-dim);
+    /* CARD 3: WATERY NUDE-RED/ROSE FILTER */
+    .nude-card.card-red {
+      background: linear-gradient(160deg,
+          rgba(255, 244, 244, 0.72) 0%,
+          rgba(254, 236, 236, 0.40) 50%,
+          rgba(255, 246, 246, 0.65) 100%);
+      border: 1.5px solid rgba(220, 38, 38, 0.18);
     }
 
-    .advanced-auth {
-      margin-top: 12px;
+    .nude-card-head {
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 2;
     }
 
-    .advanced-auth summary {
-      cursor: pointer;
-      color: var(--text-dim);
-      font-size: 0.85rem;
-      font-family: 'Inter', sans-serif;
-      list-style: none;
-    }
-
-    .advanced-auth summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .advanced-auth summary:hover {
-      color: var(--text-primary);
-    }
-
-    .advanced-auth .url-input-wrapper {
-      margin-top: 10px;
-    }
-
-    .btn-submit {
-      background: var(--accent-gradient);
-      color: #FFFFFF;
-      font-family: 'Inter', sans-serif;
-      font-weight: 700;
-      font-size: 0.95rem;
-      padding: 0 28px;
-      border-radius: var(--radius-md);
-      border: none;
-      cursor: pointer;
+    .nude-card-title-row {
       display: flex;
       align-items: center;
       gap: 8px;
-      white-space: nowrap;
-      transition: transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
-      box-shadow: 0 0 15px var(--accent-glow);
-    }
-
-    .btn-submit:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 0 25px var(--accent-glow-strong);
-    }
-
-    .btn-submit:active {
-      transform: translateY(0);
-    }
-
-    .btn-submit:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    /* Preset Chips */
-    .presets {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 16px;
-      flex-wrap: wrap;
-    }
-
-    .presets-label {
-      font-size: 0.8rem;
-      color: var(--text-dim);
-      font-weight: 500;
-    }
-
-    .chip {
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      padding: 4px 12px;
-      border-radius: var(--radius-full);
-      font-size: 0.75rem;
-      font-family: 'JetBrains Mono', monospace;
-      cursor: pointer;
-      transition: all var(--transition-fast);
-    }
-
-    .chip:hover {
-      border-color: var(--accent-cyan);
-      color: var(--accent-cyan);
-      background: rgba(8, 145, 168, 0.05);
-    }
-
-    /* Loading State */
-    .loading-card {
-      display: none;
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      padding: 40px 24px;
-      text-align: center;
-      margin-bottom: 40px;
-    }
-
-    .spinner {
-      width: 44px;
-      height: 44px;
-      border: 3px solid rgba(8, 145, 168, 0.15);
-      border-top-color: var(--accent-cyan);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto 20px auto;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .loading-title {
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-
-    .loading-desc {
-      color: var(--text-secondary);
-      font-size: 0.88rem;
-    }
-
-    /* Error Alert */
-    .error-card {
-      display: none;
-      background: rgba(248, 81, 73, 0.1);
-      border: 1px solid rgba(248, 81, 73, 0.3);
-      border-radius: var(--radius-md);
-      padding: 16px 20px;
-      margin-bottom: 32px;
-      color: #FF7B72;
-      font-size: 0.9rem;
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-    }
-
-    .error-card-icon {
-      font-size: 1.2rem;
-      line-height: 1;
-    }
-
-    .error-card-content {
-      flex: 1;
-    }
-
-    .error-card-title {
+      font-size: 1.05rem;
       font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .nude-card-title-row.green {
+      color: #14532D;
+    }
+
+    .nude-card-title-row.amber {
+      color: #92400E;
+    }
+
+    .nude-card-title-row.red {
+      color: #991B1B;
+    }
+
+    .nude-card-sublabel {
+      font-size: 0.78rem;
+      color: #6B7280;
+      line-height: 1.4;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .nude-feature-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .nude-feature-item {
+      font-size: 0.82rem;
+      color: #4B5563;
+      line-height: 1.5;
+    }
+
+    .nude-feature-item strong {
+      display: block;
+      color: #111827;
+      font-weight: 600;
       margin-bottom: 2px;
     }
 
-    /* Results Card */
-    .results-wrapper {
-      display: none;
-      animation: fadeIn 0.3s ease forwards;
+    .nude-try-wrap {
+      padding-top: 14px;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+      position: relative;
+      z-index: 2;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Analysis Summary Bar */
-    .analysis-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      margin-bottom: 32px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: var(--shadow-card);
-    }
-
-    .analysis-meta {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .meta-item {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .meta-label {
-      font-size: 0.75rem;
+    .nude-try-label {
+      font-size: 0.72rem;
+      font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: var(--text-dim);
-      font-weight: 600;
+      color: #6B7280;
+      margin-bottom: 8px;
+      display: block;
     }
 
-    .meta-value {
-      font-size: 0.95rem;
-      font-weight: 600;
+    .nude-try-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    /* Watery droplet chips inside cards */
+    .nude-chip {
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.95);
+      outline: 1px solid rgba(0, 0, 0, 0.04);
+      color: #1F2937;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-size: 0.73rem;
+      font-family: 'JetBrains Mono', monospace;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.9), 0 2px 5px rgba(0, 0, 0, 0.03);
+      transition: all var(--transition-fast);
+    }
+
+    .nude-chip:hover {
+      background: rgba(255, 255, 255, 0.95);
+      border-color: var(--brand-green);
+      color: var(--brand-green);
+      transform: translateY(-1px);
+    }
+
+    /* ---------------------------------------------------------
+       AIKART ECOSYSTEM CALLOUT BANNER
+       --------------------------------------------------------- */
+    .aikart-showcase-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-35);
+      padding: 24px 30px;
+      margin-bottom: 48px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .aikart-showcase-text {
+      flex: 1;
+      min-width: 280px;
+    }
+
+    .aikart-showcase-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #111827;
       display: flex;
       align-items: center;
       gap: 8px;
+      margin-bottom: 4px;
     }
 
-    .badge-framework {
-      background: rgba(8, 145, 168, 0.1);
-      color: var(--accent-cyan);
-      border: 1px solid rgba(8, 145, 168, 0.3);
-      padding: 4px 12px;
-      border-radius: var(--radius-sm);
-      font-family: 'JetBrains Mono', monospace;
+    .aikart-showcase-desc {
       font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .aikart-showcase-desc a {
+      color: var(--brand-green);
       font-weight: 600;
     }
 
-    .badge-confidence {
-      background: rgba(126, 231, 135, 0.1);
-      color: var(--code-green);
-      border: 1px solid rgba(126, 231, 135, 0.3);
-      padding: 4px 10px;
-      border-radius: var(--radius-sm);
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-
-    .endpoint-pill {
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-subtle);
-      padding: 8px 14px;
-      border-radius: var(--radius-md);
-      font-family: 'JetBrains Mono', monospace;
+    .aikart-btn {
+      background: #111827;
+      color: #FFFFFF;
+      padding: 10px 20px;
+      border-radius: var(--radius-full);
       font-size: 0.85rem;
-      color: var(--text-primary);
-      display: flex;
+      font-weight: 600;
+      display: inline-flex;
       align-items: center;
-      gap: 12px;
+      gap: 6px;
+      transition: all var(--transition-fast);
     }
 
-    /* Proxy Banner */
+    .aikart-btn:hover {
+      background: var(--brand-green);
+      color: #FFFFFF;
+      text-decoration: none;
+      transform: translateY(-1px);
+    }
+
+    /* ---------------------------------------------------------
+       RESULTS, PROXY BANNER, CONFIG TABS (Radius 35px)
+       --------------------------------------------------------- */
+    .results-wrapper {
+      display: none;
+      margin-top: 10px;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* PROXY BANNER: Clean Solid Surface (No Gradient) */
     .proxy-banner {
-      background: linear-gradient(135deg, rgba(8, 145, 168, 0.08) 0%, rgba(63, 185, 80, 0.08) 100%);
-      border: 1px solid rgba(8, 145, 168, 0.35);
-      border-radius: var(--radius-lg);
-      padding: 20px 24px;
-      margin-bottom: 28px;
+      background: #FFFFFF;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-35);
+      padding: 24px 30px;
+      margin-bottom: 24px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      box-shadow: 0 4px 20px rgba(8, 145, 168, 0.12);
+      gap: 14px;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+    }
+
+    .proxy-banner-header,
+    .proxy-banner-content {
+      position: relative;
     }
 
     .proxy-banner-header {
@@ -704,132 +796,234 @@
     }
 
     .proxy-banner-title {
+      font-size: 0.95rem;
       font-weight: 700;
-      font-size: 1.05rem;
-      color: var(--accent-cyan);
+      color: #111827;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
+    }
+
+    .proxy-icon-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(27, 77, 62, 0.08);
+      border: 1px solid rgba(27, 77, 62, 0.16);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--brand-green);
     }
 
     .badge-proxy-active {
-      background: rgba(63, 185, 80, 0.15);
-      color: #7EE787;
-      border: 1px solid rgba(63, 185, 80, 0.4);
-      padding: 4px 14px;
-      border-radius: var(--radius-full);
-      font-size: 0.82rem;
+      background: rgba(22, 101, 52, 0.08);
+      color: var(--status-green);
+      border: 1px solid rgba(22, 101, 52, 0.2);
+      font-size: 0.78rem;
       font-weight: 700;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
       display: inline-flex;
       align-items: center;
       gap: 6px;
     }
 
-    .proxy-label {
-      font-size: 0.82rem;
-      color: var(--text-secondary);
-      font-weight: 500;
+    .analysis-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-35);
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
     }
 
+    .analysis-meta {
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
 
-    /* Tabs Component */
-    .config-card {
-      background: var(--bg-card);
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .meta-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+    }
+
+    .meta-value {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-framework {
+      background: rgba(27, 77, 62, 0.1);
+      color: var(--brand-green);
+      font-weight: 700;
+      font-size: 0.8rem;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+    }
+
+    .badge-confidence {
+      background: #F3F4F6;
+      color: #4B5563;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+    }
+
+    .endpoint-pill {
+      background: #F9FAFB;
       border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-full);
+      padding: 4px 6px 4px 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      color: #111827;
+      max-width: 100%;
+      word-break: break-all;
+    }
+
+    .btn-copy {
+      background: #FFFFFF;
+      border: 1px solid #D1D5DB;
+      color: #374151;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all var(--transition-fast);
+      white-space: nowrap;
+    }
+
+    .btn-copy:hover {
+      border-color: var(--brand-green);
+      color: var(--brand-green);
+    }
+
+    .btn-copy.copied {
+      background: rgba(22, 101, 52, 0.1);
+      border-color: var(--status-green);
+      color: var(--status-green);
+    }
+
+    /* Tabs & Config Card */
+    .config-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-35);
       overflow: hidden;
-      box-shadow: var(--shadow-card);
-      margin-bottom: 32px;
+      isolation: isolate;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
     }
 
     .tab-bar {
       display: flex;
-      background: #F6F8FA;
-      border-bottom: 1px solid var(--border-subtle);
-      padding: 0 16px;
-      gap: 8px;
+      background: #F9FAFB;
+      border-bottom: 1px solid #E5E7EB;
       overflow-x: auto;
+      overflow-y: hidden;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      /* Firefox */
+      -ms-overflow-style: none;
+      /* IE 10+ */
+      padding: 6px 18px 0 18px;
+    }
+
+    .tab-bar::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
     }
 
     .tab-btn {
-      background: transparent;
+      background: none;
       border: none;
-      color: var(--text-secondary);
-      font-family: 'Inter', sans-serif;
-      font-size: 0.9rem;
+      padding: 12px 16px;
+      font-family: var(--font-desc);
+      font-size: 0.82rem;
       font-weight: 600;
-      padding: 16px 20px;
+      color: #6B7280;
       cursor: pointer;
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
       position: relative;
-      transition: color var(--transition-fast);
       white-space: nowrap;
+      flex-shrink: 0;
+      transition: color var(--transition-fast);
+    }
+
+    .tab-btn .brand-logo {
+      flex-shrink: 0;
+      display: inline-block;
+      vertical-align: middle;
+      transition: transform var(--transition-fast);
+    }
+
+    .tab-btn:hover .brand-logo {
+      transform: scale(1.08);
     }
 
     .tab-btn:hover {
-      color: var(--text-primary);
+      color: var(--brand-green);
     }
 
     .tab-btn.active {
-      color: var(--accent-cyan);
+      color: var(--brand-green);
     }
 
     .tab-btn.active::after {
       content: "";
       position: absolute;
       bottom: -1px;
-      left: 0;
-      right: 0;
+      left: 8px;
+      right: 8px;
       height: 2px;
-      background: var(--accent-cyan);
-      box-shadow: 0 0 10px var(--accent-cyan);
+      background: var(--brand-green);
     }
 
-    /* Code Container */
     .code-container {
-      position: relative;
-      background: var(--code-bg);
+      background: #181D24;
+      color: #E2E8F0;
+      padding: 0;
     }
 
     .code-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 12px 20px;
-      background: rgba(20, 24, 31, 0.02);
-      border-bottom: 1px solid rgba(20, 24, 31, 0.06);
+      padding: 10px 20px;
+      background: rgba(0, 0, 0, 0.25);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       font-size: 0.78rem;
-      color: var(--text-dim);
-    }
-
-    .btn-copy {
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-primary);
-      font-family: 'Inter', sans-serif;
-      font-size: 0.8rem;
-      font-weight: 600;
-      padding: 6px 14px;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all var(--transition-fast);
-    }
-
-    .btn-copy:hover {
-      border-color: var(--accent-cyan);
-      color: var(--accent-cyan);
-      background: rgba(8, 145, 168, 0.08);
-    }
-
-    .btn-copy.copied {
-      background: rgba(63, 185, 80, 0.15);
-      border-color: var(--status-green);
-      color: var(--status-green);
+      color: #94A3B8;
     }
 
     pre {
@@ -840,50 +1034,51 @@
 
     code {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.88rem;
-      color: var(--text-primary);
-      line-height: 1.5;
+      font-size: 0.85rem;
+      line-height: 1.55;
     }
 
-    /* Integration Guide Section */
+    /* Guide Card */
     .guide-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
+      background: #FFFFFF;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-35);
       padding: 28px;
-      box-shadow: var(--shadow-card);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
     }
 
     .guide-title {
-      font-size: 1.15rem;
+      font-size: 1.05rem;
       font-weight: 700;
       margin-bottom: 20px;
       display: flex;
       align-items: center;
       gap: 10px;
+      color: #111827;
     }
 
     .guide-steps {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
     }
 
     .guide-step {
       display: flex;
-      gap: 16px;
+      gap: 14px;
       align-items: flex-start;
     }
 
     .step-num {
-      width: 28px;
-      height: 28px;
+      width: 26px;
+      height: 26px;
       border-radius: 50%;
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-subtle);
-      color: var(--accent-cyan);
+      background: #F3F4F6;
+      border: 1px solid #E5E7EB;
+      color: var(--brand-green);
       font-weight: 700;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -892,77 +1087,99 @@
     }
 
     .step-text {
-      font-size: 0.92rem;
-      color: var(--text-secondary);
+      font-size: 0.88rem;
+      color: #4B5563;
     }
 
     .location-badge {
       display: block;
       margin-top: 6px;
-      background: var(--code-bg);
-      border: 1px solid var(--border-subtle);
-      padding: 6px 12px;
-      border-radius: var(--radius-sm);
+      background: #F3F4F6;
+      border: 1px solid #E5E7EB;
+      padding: 4px 10px;
+      border-radius: 6px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8rem;
-      color: var(--code-cyan);
+      font-size: 0.78rem;
+      color: #1F2937;
       width: fit-content;
     }
 
-    /* Features Grid */
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 24px;
-      margin-top: 64px;
+    /* Loading & Error States */
+    .loading-card {
+      display: none;
+      background: #FFFFFF;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-35);
+      padding: 36px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
     }
 
-    .feature-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      padding: 28px;
-      transition: border-color var(--transition-fast), transform var(--transition-fast);
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(27, 77, 62, 0.15);
+      border-top-color: var(--brand-green);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px auto;
     }
 
-    .feature-card:hover {
-      border-color: var(--border-hover);
-      transform: translateY(-2px);
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
     }
 
-    .feature-icon {
-      width: 44px;
-      height: 44px;
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.25rem;
-      margin-bottom: 16px;
-      color: var(--accent-cyan);
-    }
-
-    .feature-card h3 {
-      font-size: 1.05rem;
+    .loading-title {
+      font-size: 1rem;
       font-weight: 700;
-      margin-bottom: 8px;
+      color: #111827;
+      margin-bottom: 6px;
     }
 
-    .feature-card p {
-      font-size: 0.88rem;
-      color: var(--text-secondary);
+    .loading-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
     }
 
-    /* Footer */
+    .error-card {
+      display: none;
+      background: #FEF2F2;
+      border: 1px solid #FEE2E2;
+      border-radius: var(--radius-35);
+      padding: 20px 24px;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .error-card-icon {
+      font-size: 1.4rem;
+    }
+
+    .error-card-title {
+      font-weight: 700;
+      color: #991B1B;
+      font-size: 0.92rem;
+    }
+
+    #errorMessage {
+      font-size: 0.84rem;
+      color: #B91C1C;
+    }
+
+    /* ---------------------------------------------------------
+       FOOTER
+       --------------------------------------------------------- */
     footer {
       border-top: 1px solid var(--border-subtle);
-      padding: 32px 0;
-      margin-top: 64px;
-      background: var(--bg-card);
+      padding: 36px 0;
+      margin-top: 40px;
+      background: #FFFFFF;
       font-size: 0.85rem;
-      color: var(--text-dim);
+      color: var(--text-muted);
     }
 
     .footer-inner {
@@ -973,160 +1190,323 @@
       gap: 16px;
     }
 
-    /* Responsive Design */
-    @media (max-width: 768px) {
-      .hero h1 {
-        font-size: 2rem;
-      }
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
-      .input-group {
-        flex-direction: column;
-      }
+    .footer-links {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
 
-      .btn-submit {
-        padding: 14px 20px;
-        justify-content: center;
-      }
+    .footer-links a {
+      color: var(--text-muted);
+      transition: color var(--transition-fast);
+    }
 
-      .analysis-card {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .navbar-inner {
-        flex-direction: column;
-        gap: 12px;
-      }
+    .footer-links a:hover {
+      color: var(--brand-green);
     }
   </style>
 </head>
+
 <body>
 
-  <!-- Navbar -->
-  <nav class="navbar">
-    <div class="container navbar-inner">
-      <div class="brand">
-        <div class="brand-icon">⚡</div>
-        <span>MCPify</span>
-      </div>
-      <div class="nav-links">
-        <span class="badge-status">API Operational</span>
-        <a href="/docs" target="_blank" class="nav-link">Swagger Docs</a>
-        <a href="/health" target="_blank" class="nav-link">Health</a>
-      </div>
-    </div>
-  </nav>
+  <!-- Separate Navbar Component (Rendered server-side or loaded via client fallback) -->
+  <div id="navbar-container">
+    <!-- NAVBAR_COMPONENT -->
+  </div>
 
-  <!-- Main Body -->
+  <!-- Main Content -->
   <main>
     <div class="container">
 
-      <!-- Hero Section -->
-      <section class="hero">
-        <div class="hero-tag">⚡ Model Context Protocol Bridge</div>
-        <h1>Generate MCP links for any AI Agent</h1>
-        <p>Turn any deployed agent or REST API into a standardized MCP server for Claude Desktop, Cursor, Windsurf, Cline, VS Code, and the Claude Code CLI in seconds.</p>
-      </section>
+      <!-- Hero Section (Left Copy + Right New Connection Card) -->
+      <section class="hero-split">
 
-      <!-- Input Card -->
-      <section class="input-card">
-        <form id="mcpForm" onsubmit="handleGenerate(event)">
-          <div class="input-group">
-            <div class="url-input-wrapper">
-              <span class="url-icon">🌐</span>
-              <input 
-                type="url" 
-                id="agentUrl" 
-                class="url-input" 
-                placeholder="Paste your deployed agent URL here... (e.g. https://my-agent.onrender.com)" 
-                required 
-                autocomplete="off"
-              />
-            </div>
-            <button type="submit" id="submitBtn" class="btn-submit">
-              <span>Generate MCP Config</span>
-              <span id="btnIcon">⚡</span>
-            </button>
+        <!-- Left Column -->
+        <div class="hero-left">
+          <span class="hero-tagline">Model Context Protocol bridge</span>
+          <h1 class="hero-title">Generate MCP links<br>for any AI agent</h1>
+          <p class="hero-desc">
+            Turn any deployed agent or REST API into a standardized MCP server in seconds, ready to plug into the tools
+            your team already uses.
+          </p>
+
+          <!-- Client Pills with Brand Logos -->
+          <div class="client-pills">
+            <span class="client-pill">
+              <svg class="brand-logo" width="13" height="13" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M13.2 2.5a1.2 1.2 0 0 0-2.4 0v4.2L7.8 4.1A1.2 1.2 0 0 0 6.1 5.8l2.6 3-4.2.3a1.2 1.2 0 0 0-.4 2.4l4.2.6-3.1 2.8a1.2 1.2 0 0 0 1.6 1.8l3.4-2.4.2 4.3a1.2 1.2 0 0 0 2.4.2l.3-4.3 3 3a1.2 1.2 0 0 0 1.8-1.6L16.2 14l4.3-.2a1.2 1.2 0 0 0 .4-2.4l-4.2-.6 3.1-2.8a1.2 1.2 0 0 0-1.6-1.8l-3.4 2.4-.2-4.3a1.2 1.2 0 0 0-1.4-1.8z"
+                  fill="#D97757" />
+              </svg>
+              Claude Desktop
+            </span>
+            <span class="client-pill">
+              <svg class="brand-logo" width="13" height="13" viewBox="0 0 24 24" fill="none">
+                <path d="M12 1.75L3.25 6.8v10.4L12 22.25l8.75-5.05V6.8L12 1.75z" fill="rgba(0,0,0,0.06)"
+                  stroke="#111827" stroke-width="1.8" stroke-linejoin="round" />
+                <path d="M12 22V12M12 12L3.5 7M12 12l8.5-5" stroke="#111827" stroke-width="1.8"
+                  stroke-linejoin="round" />
+              </svg>
+              Cursor
+            </span>
+            <span class="client-pill">
+              <svg class="brand-logo" width="13" height="13" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M3.5 14.5c2.5-4.5 6-7.5 11.5-8.5 1.5-.3 3 0 4.5.8-2 1.2-3.8 2.8-4.8 5.2-.8 2.2-2.2 4.2-4.5 5.2-2.2.8-4.5.3-6.7-2.7z"
+                  fill="url(#windsurfPillGrad)" />
+                <circle cx="17.2" cy="6.2" r="2.2" fill="#00E5BE" />
+                <defs>
+                  <linearGradient id="windsurfPillGrad" x1="4" y1="6" x2="20" y2="18" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#00E5BE" />
+                    <stop offset="1" stop-color="#0284C7" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              Windsurf
+            </span>
+            <span class="client-pill">
+              <svg class="brand-logo" width="13" height="13" viewBox="0 0 24 24" fill="none">
+                <rect x="2.5" y="8.5" width="19" height="12.5" rx="3.5" fill="rgba(124, 58, 237, 0.12)" stroke="#7C3AED"
+                  stroke-width="1.8" />
+                <circle cx="8" cy="15" r="1.8" fill="#7C3AED" />
+                <circle cx="16" cy="15" r="1.8" fill="#7C3AED" />
+                <path d="M12 3v5.5M8 5.5h8" stroke="#7C3AED" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+              Cline
+            </span>
+            <span class="client-pill">
+              <svg class="brand-logo" width="13" height="13" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M17.5 2.5L7.2 10.4 3.5 7.5 1.5 8.7l3.8 3.3-3.8 3.3 2 1.2 3.7-2.9 10.3 7.9L22 19.8V4.2l-4.5-1.7zm0 4.3v10.4L10.2 12l7.3-5.2z"
+                  fill="#007ACC" />
+              </svg>
+              VS Code
+            </span>
+            <span class="client-pill">
+              <svg class="brand-logo" width="13" height="13" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3.5" width="20" height="17" rx="3.5" fill="#0F172A" />
+                <path d="M6.5 8.5L10 12l-3.5 3.5" stroke="#D97757" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+                <line x1="12" y1="15.5" x2="17.5" y2="15.5" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" />
+              </svg>
+              Claude Code CLI
+            </span>
+          </div>
+        </div>
+
+        <!-- Right Column: New connection card (Radius 35px) -->
+        <div class="hero-card">
+          <div class="card-topbar">
+            <span class="card-topbar-title">New connection</span>
+            <span class="card-topbar-status">Ready</span>
           </div>
 
-          <details class="advanced-auth">
-            <summary>🔑 Target requires an API key? (optional)</summary>
-            <div class="url-input-wrapper">
-              <span class="url-icon">🔑</span>
-              <input
-                type="password"
-                id="agentApiKey"
-                class="url-input"
-                placeholder="Bearer token / API key — sent straight to the target, never stored"
-                autocomplete="off"
-              />
+          <form id="mcpForm" onsubmit="handleGenerate(event)">
+            <label class="input-label" for="agentUrl">Agent or API URL</label>
+            <div class="input-action-row">
+              <input type="text" id="agentUrl" class="agent-input"
+                placeholder="Paste your deployed agent URL here... (e.g. https://my-agent.onrender.com)" required
+                autocomplete="off" />
+              <button type="submit" id="submitBtn" class="btn-generate">
+                <span>Generate config</span>
+              </button>
             </div>
-          </details>
-        </form>
+          </form>
 
-        <div class="presets">
-          <span class="presets-label">Try example:</span>
-          <button type="button" class="chip" onclick="tryExample('http://127.0.0.1:10000')">Localhost (MCPify Self-Probe)</button>
-          <button type="button" class="chip" onclick="tryExample('https://fastapi.tiangolo.com')">FastAPI Docs</button>
-          <button type="button" class="chip" onclick="tryExample('https://httpbin.org')">httpbin.org</button>
+          <!-- Quick Try chips -->
+          <div class="quick-try-row">
+            <span class="quick-try-label">Try:</span>
+            <button type="button" class="quick-chip"
+              onclick="tryExample('https://catfact.ninja')">catfact.ninja</button>
+            <button type="button" class="quick-chip"
+              onclick="tryExample('https://jsonplaceholder.typicode.com')">jsonplaceholder</button>
+            <button type="button" class="quick-chip" onclick="tryExample('https://httpbin.org')">httpbin.org</button>
+          </div>
+
+          <div class="card-divider-dotted"></div>
+
+          <p class="card-footnote">
+            MCPify checks the common MCP paths on your URL. If none respond, it wraps your API in a proxy so it still
+            works as an MCP server.
+          </p>
         </div>
+
       </section>
 
-      <!-- Compatibility Guide -->
+      <!-- Three Cards: What kind of links work? (Watery Transparent with Nude Color Filter, radius 35px) -->
       <section class="compat-section">
-        <div class="compat-title">What kind of links work?</div>
-        <div class="compat-subtitle">Every category below except "Won't work" still gets you a link — the real question is whether the tools behind it return real data. Click any example to try it yourself.</div>
-        <div class="compat-grid">
-          <div class="compat-col">
-            <div class="compat-col-head">✅ Works great</div>
-            <div class="compat-link-badge yes">🔗 Link generated — fully working</div>
-            <ul class="compat-list">
-              <li><strong>Real MCP servers</strong> — auto-detected and connected directly, no proxy needed (Streamable HTTP or SSE transport)</li>
-              <li><strong>Public REST APIs</strong> — automatically wrapped into MCP tools (call_api, get_info, health_check)</li>
-              <li><strong>APIs hosted under a path</strong> — e.g. api.example.com/v1, example.com/api</li>
-              <li><strong>Protected APIs with a Bearer token</strong> — pass your API key and it's forwarded automatically</li>
-            </ul>
-            <div class="compat-examples">
-              <span class="compat-examples-label">Try it:</span>
-              <button type="button" class="compat-example-chip" onclick="tryExample('https://catfact.ninja')">catfact.ninja (native MCP)</button>
-              <button type="button" class="compat-example-chip" onclick="tryExample('https://mcp.deepwiki.com')">mcp.deepwiki.com (native MCP)</button>
-              <button type="button" class="compat-example-chip" onclick="tryExample('https://jsonplaceholder.typicode.com')">jsonplaceholder.typicode.com (REST)</button>
-              <button type="button" class="compat-example-chip" onclick="tryExample('https://dog.ceo/api')">dog.ceo/api (REST, path-based)</button>
-            </div>
-          </div>
-          <div class="compat-col warn">
-            <div class="compat-col-head">⚠️ Works, with limits</div>
-            <div class="compat-link-badge limited">🔗 Link generated — may return empty results</div>
-            <ul class="compat-list">
-              <li><strong>Marketing / docs-only sites</strong> — a proxy still gets created, but tool calls won't return real data if there's no actual API behind it</li>
-              <li><strong>Auth beyond a Bearer token</strong> — OAuth flows, custom auth headers, or cookie-based login aren't supported yet</li>
-              <li><strong>Very slow APIs</strong> — calls time out after ~15 seconds</li>
-            </ul>
-            <div class="compat-examples">
-              <span class="compat-examples-label">Try it:</span>
-              <button type="button" class="compat-example-chip" onclick="tryExample('https://stripe.com')">stripe.com (marketing site)</button>
-              <button type="button" class="compat-example-chip" onclick="tryExample('https://n8n.io')">n8n.io (marketing site)</button>
-            </div>
-          </div>
-          <div class="compat-col no">
-            <div class="compat-col-head">❌ Won't work</div>
-            <div class="compat-link-badge no">🚫 No link generated — refused with an error</div>
-            <ul class="compat-list">
-              <li><strong>Private / internal / localhost URLs</strong> — blocked for security, prevents SSRF attacks</li>
-              <li><strong>Unreachable or non-existent domains</strong> — nothing there to connect to</li>
-              <li><strong>Malformed URLs</strong> — refused cleanly with an error instead of crashing</li>
-            </ul>
-            <div class="compat-examples">
-              <span class="compat-examples-label">Try it:</span>
-              <button type="button" class="compat-example-chip" onclick="tryExample('http://localhost')">localhost (blocked)</button>
-              <button type="button" class="compat-example-chip" onclick="tryExample('javascript:alert(1)')">malformed URL</button>
-            </div>
-          </div>
+        <div class="compat-header">
+          <h2 class="compat-title">What kind of links work?</h2>
+          <p class="compat-subtitle">
+            Every category except the last still gets you a link. What matters is whether the tools behind it return
+            real data. Pick any example to try it.
+          </p>
         </div>
+
+        <div class="compat-grid">
+
+          <!-- Card 1: Works fully (Watery Nude-Green Filter) -->
+          <div class="nude-card card-green">
+            <div>
+              <div class="nude-card-head">
+                <div class="nude-card-title-row green">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14532D" stroke-width="2.8"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>Works fully</span>
+                </div>
+                <div class="nude-card-sublabel">Link generated, tools return real data</div>
+              </div>
+
+              <ul class="nude-feature-list">
+                <li class="nude-feature-item">
+                  <strong>Real MCP servers</strong>
+                  Detected and connected directly, no proxy needed. Streamable HTTP and SSE are both supported.
+                </li>
+                <li class="nude-feature-item">
+                  <strong>Public REST APIs</strong>
+                  Wrapped into MCP tools automatically: call_api, get_info and health_check.
+                </li>
+                <li class="nude-feature-item">
+                  <strong>APIs hosted under a path</strong>
+                  For example api.example.com/v1 or example.com/api.
+                </li>
+                <li class="nude-feature-item">
+                  <strong>APIs with a Bearer token</strong>
+                  Pass your API key and it is forwarded on every call.
+                </li>
+              </ul>
+            </div>
+
+            <div class="nude-try-wrap">
+              <span class="nude-try-label">Try it</span>
+              <div class="nude-try-chips">
+                <button type="button" class="nude-chip"
+                  onclick="tryExample('https://catfact.ninja')">catfact.ninja</button>
+                <button type="button" class="nude-chip"
+                  onclick="tryExample('https://mcp.deepwiki.com')">mcp.deepwiki.com</button>
+                <button type="button" class="nude-chip"
+                  onclick="tryExample('https://jsonplaceholder.typicode.com')">jsonplaceholder</button>
+                <button type="button" class="nude-chip" onclick="tryExample('https://dog.ceo/api')">dog.ceo/api</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Works with limits (Watery Nude-Orange/Amber Filter) -->
+          <div class="nude-card card-amber">
+            <div>
+              <div class="nude-card-head">
+                <div class="nude-card-title-row amber">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                      d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  <span>Works with limits</span>
+                </div>
+                <div class="nude-card-sublabel">Link generated, results may be empty</div>
+              </div>
+
+              <ul class="nude-feature-list">
+                <li class="nude-feature-item">
+                  <strong>Marketing or docs-only sites</strong>
+                  A proxy is still created, but tool calls return no real data if there is no API behind the site.
+                </li>
+                <li class="nude-feature-item">
+                  <strong>Auth beyond a Bearer token</strong>
+                  OAuth flows, custom auth headers and cookie-based login are not supported yet.
+                </li>
+                <li class="nude-feature-item">
+                  <strong>Slow APIs</strong>
+                  Calls time out after about 15 seconds.
+                </li>
+              </ul>
+            </div>
+
+            <div class="nude-try-wrap">
+              <span class="nude-try-label">Try it</span>
+              <div class="nude-try-chips">
+                <button type="button" class="nude-chip" onclick="tryExample('https://stripe.com')">stripe.com</button>
+                <button type="button" class="nude-chip" onclick="tryExample('https://n8n.io')">n8n.io</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Not supported (Watery Nude-Red/Rose Filter) -->
+          <div class="nude-card card-red">
+            <div>
+              <div class="nude-card-head">
+                <div class="nude-card-title-row red">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#991B1B" stroke-width="2.8"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                  <span>Not supported</span>
+                </div>
+                <div class="nude-card-sublabel">No link generated, request is refused</div>
+              </div>
+
+              <ul class="nude-feature-list">
+                <li class="nude-feature-item">
+                  <strong>Private, internal or localhost URLs</strong>
+                  Blocked for security to prevent SSRF attacks.
+                </li>
+                <li class="nude-feature-item">
+                  <strong>Unreachable domains</strong>
+                  There is nothing at the address to connect to.
+                </li>
+                <li class="nude-feature-item">
+                  <strong>Malformed URLs</strong>
+                  Refused with a clear error message.
+                </li>
+              </ul>
+            </div>
+
+            <div class="nude-try-wrap">
+              <span class="nude-try-label">Try it</span>
+              <div class="nude-try-chips">
+                <button type="button" class="nude-chip" onclick="tryExample('http://localhost')">localhost</button>
+                <button type="button" class="nude-chip" onclick="tryExample('javascript:alert(1)')">malformed
+                  URL</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Aikart Ecosystem Banner -->
+      <section class="aikart-showcase-card">
+        <div class="aikart-showcase-text">
+          <div class="aikart-showcase-title">
+            <span>✦</span>
+            <span>Aikart Agent Ecosystem</span>
+          </div>
+          <p class="aikart-showcase-desc">
+            MCPify is an agent under <a href="https://aikart.co" target="_blank"
+              rel="noopener noreferrer">aikart.co</a>. Aikart empowers builders with specialized autonomous AI agents,
+            tool bridges, and agentic workflows for modern AI clients.
+          </p>
+        </div>
+        <a href="https://aikart.co" target="_blank" rel="noopener noreferrer" class="aikart-btn">
+          <span>Visit Aikart.co</span>
+          <span>↗</span>
+        </a>
       </section>
 
       <!-- Error State -->
-      <div id="errorCard" class="error-card" style="display: none;">
+      <div id="errorCard" class="error-card">
         <div class="error-card-icon">⚠️</div>
         <div class="error-card-content">
           <div class="error-card-title">Analysis Failed</div>
@@ -1144,26 +1524,44 @@
       <!-- Results Container -->
       <div id="resultsWrapper" class="results-wrapper">
 
-        <!-- Proxy Banner Notice (shown when target has no native /mcp) -->
+        <!-- Proxy Banner Notice (Matching Highlight Gradient Theme, No Black Line) -->
         <div id="proxyBanner" class="proxy-banner" style="display: none;">
           <div class="proxy-banner-header">
             <div class="proxy-banner-title">
-              <span>⚡ No MCP endpoint detected — MCPify created a proxy for you!</span>
+              <span class="proxy-icon-badge">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+              </span>
+              <span>No MCP endpoint detected — MCPify created a proxy for you!</span>
             </div>
-            <span class="badge-proxy-active">Proxy Active ✅</span>
+            <span class="badge-proxy-active">
+              <span>Proxy Active</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </span>
           </div>
-          <div class="proxy-banner-body">
-            <span class="proxy-label">MCP Proxy URL:</span>
+          <div class="proxy-banner-content">
+            <span style="font-size: 0.8rem; color: #4B5563; font-weight: 600;">MCP Proxy URL:</span>
             <div class="endpoint-pill" style="margin-top: 6px;">
-              <span id="proxyUrlDisplay" class="mono">https://aikart-mcpify.onrender.com/proxy/abc123/mcp</span>
-              <button class="btn-copy" onclick="copyText('proxyUrlDisplay', this)" style="padding: 4px 10px; font-size: 0.75rem;">Copy Proxy URL</button>
+              <span id="proxyUrlDisplay" class="mono">https://your-app.onrender.com/proxy/abc123/mcp</span>
+              <button class="btn-copy" onclick="copyText('proxyUrlDisplay', this)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                <span>Copy Proxy URL</span>
+              </button>
             </div>
           </div>
         </div>
 
         <!-- Analysis Meta Card -->
         <div class="analysis-card">
-
           <div class="analysis-meta">
             <div class="meta-item">
               <span class="meta-label">Detected Framework</span>
@@ -1175,7 +1573,7 @@
 
             <div class="meta-item">
               <span class="meta-label">Target URL</span>
-              <div id="targetUrlDisplay" class="meta-value mono" style="font-size: 0.88rem; color: var(--text-secondary);">
+              <div id="targetUrlDisplay" class="meta-value mono" style="font-size: 0.85rem; color: var(--text-muted);">
                 https://my-agent.onrender.com
               </div>
             </div>
@@ -1185,34 +1583,81 @@
             <span class="meta-label">Recommended Remote MCP Endpoint</span>
             <div class="endpoint-pill">
               <span id="mcpEndpointDisplay">https://my-agent.onrender.com/mcp</span>
-              <button class="btn-copy" onclick="copyText('mcpEndpointDisplay', this)" style="padding: 4px 10px; font-size: 0.75rem;">Copy</button>
+              <button class="btn-copy" onclick="copyText('mcpEndpointDisplay', this)">Copy</button>
             </div>
           </div>
         </div>
 
-        <!-- Tabs & Config Viewer -->
+        <!-- Tabs & Config Viewer (Radius 35px) -->
         <div class="config-card">
           <div class="tab-bar">
             <button class="tab-btn active" id="tab-claude" onclick="switchTab('claude_desktop')">
-              <span>🤖 Claude Desktop</span>
+              <svg class="brand-logo" width="15" height="15" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M13.2 2.5a1.2 1.2 0 0 0-2.4 0v4.2L7.8 4.1A1.2 1.2 0 0 0 6.1 5.8l2.6 3-4.2.3a1.2 1.2 0 0 0-.4 2.4l4.2.6-3.1 2.8a1.2 1.2 0 0 0 1.6 1.8l3.4-2.4.2 4.3a1.2 1.2 0 0 0 2.4.2l.3-4.3 3 3a1.2 1.2 0 0 0 1.8-1.6L16.2 14l4.3-.2a1.2 1.2 0 0 0 .4-2.4l-4.2-.6 3.1-2.8a1.2 1.2 0 0 0-1.6-1.8l-3.4 2.4-.2-4.3a1.2 1.2 0 0 0-1.4-1.8z"
+                  fill="#D97757" />
+              </svg>
+              <span>Claude Desktop</span>
             </button>
             <button class="tab-btn" id="tab-cursor" onclick="switchTab('cursor_vscode')">
-              <span>⚡ Cursor</span>
+              <svg class="brand-logo" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M12 1.75L3.25 6.8v10.4L12 22.25l8.75-5.05V6.8L12 1.75z" fill="rgba(0,0,0,0.06)"
+                  stroke="#111827" stroke-width="1.8" stroke-linejoin="round" />
+                <path d="M12 22V12M12 12L3.5 7M12 12l8.5-5" stroke="#111827" stroke-width="1.8"
+                  stroke-linejoin="round" />
+              </svg>
+              <span>Cursor</span>
             </button>
             <button class="tab-btn" id="tab-windsurf" onclick="switchTab('windsurf')">
-              <span>🏄 Windsurf</span>
+              <svg class="brand-logo" width="15" height="15" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M3.5 14.5c2.5-4.5 6-7.5 11.5-8.5 1.5-.3 3 0 4.5.8-2 1.2-3.8 2.8-4.8 5.2-.8 2.2-2.2 4.2-4.5 5.2-2.2.8-4.5.3-6.7-2.7z"
+                  fill="url(#windsurfTabGrad)" />
+                <circle cx="17.2" cy="6.2" r="2.2" fill="#00E5BE" />
+                <defs>
+                  <linearGradient id="windsurfTabGrad" x1="4" y1="6" x2="20" y2="18" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#00E5BE" />
+                    <stop offset="1" stop-color="#0284C7" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <span>Windsurf</span>
             </button>
             <button class="tab-btn" id="tab-cline" onclick="switchTab('cline')">
-              <span>🔧 Cline</span>
+              <svg class="brand-logo" width="15" height="15" viewBox="0 0 24 24" fill="none">
+                <rect x="2.5" y="8.5" width="19" height="12.5" rx="3.5" fill="rgba(124, 58, 237, 0.12)" stroke="#7C3AED"
+                  stroke-width="1.8" />
+                <circle cx="8" cy="15" r="1.8" fill="#7C3AED" />
+                <circle cx="16" cy="15" r="1.8" fill="#7C3AED" />
+                <path d="M12 3v5.5M8 5.5h8" stroke="#7C3AED" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+              <span>Cline</span>
             </button>
             <button class="tab-btn" id="tab-vscode" onclick="switchTab('vscode')">
-              <span>🧩 VS Code</span>
+              <svg class="brand-logo" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M17.5 2.5L7.2 10.4 3.5 7.5 1.5 8.7l3.8 3.3-3.8 3.3 2 1.2 3.7-2.9 10.3 7.9L22 19.8V4.2l-4.5-1.7zm0 4.3v10.4L10.2 12l7.3-5.2z"
+                  fill="#007ACC" />
+              </svg>
+              <span>VS Code</span>
             </button>
             <button class="tab-btn" id="tab-claude-code" onclick="switchTab('claude_code_cli')">
-              <span>⌨️ Claude Code CLI</span>
+              <svg class="brand-logo" width="15" height="15" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3.5" width="20" height="17" rx="3.5" fill="#0F172A" />
+                <path d="M6.5 8.5L10 12l-3.5 3.5" stroke="#D97757" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+                <line x1="12" y1="15.5" x2="17.5" y2="15.5" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" />
+              </svg>
+              <span>Claude Code CLI</span>
             </button>
             <button class="tab-btn" id="tab-remote" onclick="switchTab('remote_url')">
-              <span>🌐 Remote URL (REST)</span>
+              <svg class="brand-logo" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB"
+                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9.5" />
+                <path
+                  d="M2.5 12h19M12 2.5a14.5 14.5 0 0 1 4 9.5 14.5 14.5 0 0 1-4 9.5 14.5 14.5 0 0 1-4-9.5 14.5 14.5 0 0 1 4-9.5z" />
+              </svg>
+              <span>Remote URL (REST)</span>
             </button>
           </div>
 
@@ -1220,17 +1665,27 @@
             <div class="code-header">
               <span id="configLangLabel">JSON — Configuration Snippet</span>
               <button id="copyConfigBtn" class="btn-copy" onclick="copyCurrentConfig(this)">
-                <span>📋 Copy Config</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span>Copy Config</span>
               </button>
             </div>
             <pre><code id="codeBlock">// Configuration will appear here...</code></pre>
           </div>
         </div>
 
-        <!-- Integration Guide Steps -->
+        <!-- Integration Guide Steps (Radius 35px) -->
         <div class="guide-card">
           <div class="guide-title">
-            <span>📖 Step-by-Step Integration Guide</span>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1B4D3E" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            </svg>
+            <span>Step-by-Step Integration Guide</span>
             <span id="guidePlatformBadge" class="badge-framework" style="font-size: 0.75rem;">Claude Desktop</span>
           </div>
 
@@ -1247,20 +1702,42 @@
   <!-- Footer -->
   <footer>
     <div class="container footer-inner">
-      <div>
-        <strong>MCPify</strong> — Model Context Protocol Bridge & Config Generator
+      <div class="footer-brand">
+        <strong>MCPify</strong> — Model Context Protocol Bridge &bull; An AI Agent by <a href="https://aikart.co"
+          target="_blank" rel="noopener noreferrer" style="font-weight: 600; color: #111827;">Aikart.co</a>
       </div>
-      <div>
-        Built with FastAPI & FastMCP &bull; <a href="/docs" target="_blank">OpenAPI Specs</a>
+      <div class="footer-links">
+        <a href="https://aikart.co" target="_blank" rel="noopener noreferrer">Aikart Home ↗</a>
+        <a href="/docs" target="_blank">OpenAPI Docs</a>
+        <a href="/health" target="_blank">Health</a>
       </div>
     </div>
   </footer>
 
   <!-- Script Logic -->
   <script>
-    // State storage
     let currentData = null;
     let activeTab = 'claude_desktop';
+
+    // Live health check for status indicator in navbar
+    async function checkApiHealth() {
+      const dot = document.getElementById('navStatusDot');
+      const text = document.getElementById('navStatusText');
+      try {
+        const res = await fetch('/health', { cache: 'no-store' });
+        if (res.ok) {
+          dot.classList.remove('unavailable');
+          text.innerText = 'API available';
+        } else {
+          dot.classList.add('unavailable');
+          text.innerText = 'API unavailable';
+        }
+      } catch (e) {
+        dot.classList.add('unavailable');
+        text.innerText = 'API unavailable';
+      }
+    }
+    checkApiHealth();
 
     function fillUrl(url) {
       const inputEl = document.getElementById('agentUrl');
@@ -1270,10 +1747,6 @@
     }
 
     function tryExample(url) {
-      // Like fillUrl, but also runs it immediately - used by the
-      // compatibility guide's example chips so a visitor sees the real
-      // result in one click instead of "fill, then still have to find
-      // and press Generate".
       fillUrl(url);
       document.getElementById('mcpForm').requestSubmit();
     }
@@ -1289,13 +1762,11 @@
       let targetUrl = inputEl.value.trim();
       if (!targetUrl) return;
 
-      // Auto add https if protocol omitted
       if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
         targetUrl = 'https://' + targetUrl;
         inputEl.value = targetUrl;
       }
 
-      // UI Loading state
       submitBtn.disabled = true;
       submitBtn.querySelector('span').innerText = 'Analyzing...';
       loadingCard.style.display = 'block';
@@ -1303,13 +1774,12 @@
       errorCard.style.display = 'none';
 
       try {
-        const apiKeyEl = document.getElementById('agentApiKey');
-        const apiKey = apiKeyEl && apiKeyEl.value.trim() ? apiKeyEl.value.trim() : null;
+        const payload = { url: targetUrl };
 
         const response = await fetch('/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: targetUrl, api_key: apiKey })
+          body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
@@ -1320,10 +1790,12 @@
         const data = await response.json();
         currentData = data;
 
-        // Render Results
         renderResults(data);
         loadingCard.style.display = 'none';
         resultsWrapper.style.display = 'block';
+
+        // Smooth scroll to results
+        resultsWrapper.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
       } catch (err) {
         loadingCard.style.display = 'none';
@@ -1331,7 +1803,7 @@
         document.getElementById('errorMessage').innerText = err.message || 'An error occurred while connecting to the agent endpoint.';
       } finally {
         submitBtn.disabled = false;
-        submitBtn.querySelector('span').innerText = 'Generate MCP Config';
+        submitBtn.querySelector('span').innerText = 'Generate config';
       }
     }
 
@@ -1339,7 +1811,6 @@
       const analysis = data.analysis;
       const configs = data.configs;
 
-      // Check if proxy was created (has_mcp is false or proxy_url exists)
       const proxyBanner = document.getElementById('proxyBanner');
       const isProxy = analysis.has_mcp === false || Boolean(analysis.proxy_url || configs.proxy_url);
 
@@ -1351,16 +1822,13 @@
         proxyBanner.style.display = 'none';
       }
 
-      // Analysis Meta
-      document.getElementById('frameworkBadge').innerText = analysis.detected_framework;
-      document.getElementById('confidenceBadge').innerText = `${Math.round(analysis.confidence_score * 100)}% Confidence`;
+      document.getElementById('frameworkBadge').innerText = analysis.detected_framework || 'Custom / REST';
+      document.getElementById('confidenceBadge').innerText = `${Math.round((analysis.confidence_score || 1) * 100)}% Confidence`;
       document.getElementById('targetUrlDisplay').innerText = analysis.url;
       document.getElementById('mcpEndpointDisplay').innerText = configs.remote_mcp_url;
 
-      // Set active tab default
       switchTab(activeTab);
     }
-
 
     function switchTab(tab) {
       activeTab = tab;
@@ -1368,7 +1836,6 @@
 
       const configs = currentData.configs;
 
-      // Tab Buttons highlight
       document.getElementById('tab-claude').classList.toggle('active', tab === 'claude_desktop');
       document.getElementById('tab-cursor').classList.toggle('active', tab === 'cursor_vscode');
       document.getElementById('tab-windsurf').classList.toggle('active', tab === 'windsurf');
@@ -1399,7 +1866,7 @@
           { text: "Open Cursor Settings (Cmd+, or Ctrl+,) or VS Code workspace settings." },
           { text: "Navigate to Features > MCP." },
           { text: `Click 'Add New MCP Server'. Name: '${configs.server_name}', Type: 'http', URL: '${configs.remote_mcp_url}'.` },
-          { text: "Verify the green active status indicator indicator lights up." }
+          { text: "Verify the green active status indicator lights up." }
         ]);
       } else if (tab === 'windsurf') {
         codeBlock.innerText = JSON.stringify(configs.windsurf, null, 2);
@@ -1429,7 +1896,7 @@
           { text: "Use the Chat view's tools picker to confirm the server is connected." }
         ]);
       } else if (tab === 'claude_code_cli') {
-        codeBlock.innerText = configs.claude_code_cli.command;
+        codeBlock.innerText = configs.claude_code_cli ? configs.claude_code_cli.command : `claude mcp add --transport http ${configs.server_name} ${configs.remote_mcp_url}`;
         platformBadge.innerText = 'Claude Code CLI';
         renderGuideSteps([
           { text: "Run the command above in any terminal with the Claude Code CLI installed." },
@@ -1453,9 +1920,9 @@
     }
 
     function getPlatformConfigLocation(platform) {
-      if (navigator.platform.indexOf('Mac') !== -1) {
+      if (navigator.platform && navigator.platform.indexOf('Mac') !== -1) {
         return '~/Library/Application Support/Claude/claude_desktop_config.json';
-      } else if (navigator.platform.indexOf('Win') !== -1) {
+      } else if (navigator.platform && navigator.platform.indexOf('Win') !== -1) {
         return '%APPDATA%\\Claude\\claude_desktop_config.json';
       }
       return '~/.config/Claude/claude_desktop_config.json';
@@ -1500,6 +1967,18 @@
         }, 2000);
       });
     }
+
+    // Client-side fallback: load navbar.html dynamically if not pre-rendered server-side
+    if (!document.querySelector('.navbar')) {
+      fetch('/navbar.html')
+        .then(res => res.text())
+        .then(html => {
+          const container = document.getElementById('navbar-container');
+          if (container) container.innerHTML = html;
+        })
+        .catch(err => console.debug('Navbar client fetch fallback:', err));
+    }
   </script>
 </body>
+
 </html>

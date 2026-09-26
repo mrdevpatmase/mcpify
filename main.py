@@ -207,13 +207,29 @@ async def health_check():
     return {"status": "ok"}
 
 
+def render_web_page() -> HTMLResponse:
+    """Renders the web frontend, dynamically including the navbar component if present."""
+    web_dir = os.path.join(os.path.dirname(__file__), "app", "web")
+    html_path = os.path.join(web_dir, "index.html")
+    if not os.path.exists(html_path):
+        return HTMLResponse("<h1>MCPify API Running</h1>")
+
+    with open(html_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    navbar_path = os.path.join(web_dir, "navbar.html")
+    if os.path.exists(navbar_path) and "<!-- NAVBAR_COMPONENT -->" in content:
+        with open(navbar_path, "r", encoding="utf-8") as nf:
+            navbar_content = nf.read()
+        content = content.replace("<!-- NAVBAR_COMPONENT -->", navbar_content)
+
+    return HTMLResponse(content)
+
+
 @app.get("/", summary="MCPify Web Interface", response_class=HTMLResponse)
 async def root():
     """Serves the MCPify Web UI frontend."""
-    html_path = os.path.join(os.path.dirname(__file__), "app", "web", "index.html")
-    if os.path.exists(html_path):
-        return FileResponse(html_path)
-    return HTMLResponse("<h1>MCPify API Running</h1>")
+    return render_web_page()
 
 
 @app.get("/api", summary="Root Discovery Index")
@@ -692,10 +708,14 @@ async def serve_frontend_catch_all(full_path: str):
     ):
         raise HTTPException(status_code=404, detail="Endpoint not found.")
 
-    html_path = os.path.join(os.path.dirname(__file__), "app", "web", "index.html")
-    if os.path.exists(html_path):
-        return FileResponse(html_path)
-    return HTMLResponse("<h1>MCPify API Running</h1>")
+    web_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "app", "web"))
+    requested_file = os.path.abspath(os.path.join(web_dir, clean_path))
+
+    # Safely serve static files from app/web/ (e.g. navbar.html, navbar.css, images)
+    if requested_file.startswith(web_dir) and os.path.isfile(requested_file) and clean_path != "index.html":
+        return FileResponse(requested_file)
+
+    return render_web_page()
 
 
 if __name__ == "__main__":
