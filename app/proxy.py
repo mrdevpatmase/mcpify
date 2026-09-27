@@ -4,11 +4,12 @@ import uuid
 import json
 import asyncio
 import logging
+from collections import deque
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 import httpx
 
-from app.security import normalize_url, is_public_url
+from app.security import normalize_url, is_public_url, encrypt_secret, decrypt_secret
 from app.openapi_tools import operations_to_mcp_tools, build_request
 from app.graphql_tools import graphql_tools_schema
 from app.oauth import fetch_client_credentials_token, refresh_access_token
@@ -65,6 +66,51 @@ def _parse_mcp_response_body(text: str, content_type: str) -> Optional[Dict[str,
 
 REDIS_KEY_PREFIX = "mcpify:proxy:"
 REDIS_INDEX_PREFIX = "mcpify:proxy_by_url:"
+REDIS_AUDIT_LOG_KEY = "mcpify:audit_log"
+AUDIT_LOG_MAX = 500
+
+_ENCRYPTED_OAUTH_FIELDS = ("client_secret", "cached_token", "refresh_token")
+
+
+def _encrypt_proxy_secrets(proxy: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Encrypts the credential fields of a proxy record before it's
+    written to Redis - "at rest" only means something at the actual
+    persistence boundary (a Redis dump/RDB file, or an operator with
+    direct Redis access, shouldn't see raw secrets); the in-memory
+    fallback path never touches this, since encrypting values that live
+    only in this same process's memory for as long as it's running
+    protects against nothing.
+
+    Returns a shallow-enough copy so the caller's own in-memory dict
+    (which other code may still be holding a reference to, expecting
+    plaintext) is never mutated by this - only the copy that actually
+    gets serialized to Redis is encrypted.
+    """
+    out = dict(proxy)
+    if out.get("api_key"):
+        out["api_key"] = encrypt_secret(out["api_key"])
+    if out.get("oauth_config"):
+        oauth_config = dict(out["oauth_config"])
+        for field in _ENCRYPTED_OAUTH_FIELDS:
+            if oauth_config.get(field):
+                oauth_config[field] = encrypt_secret(oauth_config[field])
+        out["oauth_config"] = oauth_config
+    return out
+
+
+def _decrypt_proxy_secrets(proxy: Dict[str, Any]) -> Dict[str, Any]:
+    """Reverses _encrypt_proxy_secrets right after reading a record back
+    from Redis, so every other line of code in this file keeps working
+    with plaintext exactly as it did before encryption-at-rest existed."""
+    if proxy.get("api_key"):
+        proxy["api_key"] = decrypt_secret(proxy["api_key"])
+    if proxy.get("oauth_config"):
+        oauth_config = proxy["oauth_config"]
+        for field in _ENCRYPTED_OAUTH_FIELDS:
+            if oauth_config.get(field):
+                oauth_config[field] = decrypt_secret(oauth_config[field])
+    return proxy
 
 
 class ProxyMCPManager:
@@ -85,6 +131,7 @@ class ProxyMCPManager:
         self.proxies: Dict[str, Dict[str, Any]] = {}
         self.sessions: Dict[str, asyncio.Queue] = {}
         self._pending_oauth_states: Dict[str, tuple] = {}
+        self._audit_log: deque = deque(maxlen=AUDIT_LOG_MAX)
 
     def _get_redis(self):
         if not self.redis_url:
@@ -236,10 +283,12 @@ class ProxyMCPManager:
 
     async def _redis_get_proxy(self, redis, proxy_id: str) -> Optional[Dict[str, Any]]:
         raw = await redis.get(f"{REDIS_KEY_PREFIX}{proxy_id}")
-        return json.loads(raw) if raw else None
+        if not raw:
+            return None
+        return _decrypt_proxy_secrets(json.loads(raw))
 
     async def _redis_save_proxy(self, redis, proxy: Dict[str, Any]) -> None:
-        await redis.set(f"{REDIS_KEY_PREFIX}{proxy['proxy_id']}", json.dumps(proxy))
+        await redis.set(f"{REDIS_KEY_PREFIX}{proxy['proxy_id']}", json.dumps(_encrypt_proxy_secrets(proxy)))
 
     async def get_proxy(self, proxy_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve proxy configuration by proxy ID, or None if it doesn't exist."""
@@ -297,6 +346,40 @@ class ProxyMCPManager:
         proxy = self.proxies.get(proxy_id)
         if proxy:
             proxy["last_ping_status"] = status_code
+
+    async def record_audit_event(self, event: Dict[str, Any]) -> None:
+        """
+        Persists one audit entry (who called what tool against which
+        target, and what happened) - the "[Audit]" log line this
+        started next to is real, but it's an ephemeral stdout line that
+        scrolls away with every other log message; nothing here could
+        ever be queried again once it's gone. A capped list (Redis when
+        available, an in-memory deque otherwise - same reasoning as
+        proxy records: only Redis actually survives a restart) gives a
+        real, retrievable trail instead, at the cost of only keeping
+        the most recent AUDIT_LOG_MAX entries rather than forever - this
+        is operational visibility, not a compliance-grade tamper-evident
+        log; a real one of those would need its own append-only store.
+        """
+        entry = {**event, "timestamp": datetime.now(timezone.utc).isoformat()}
+        redis = self._get_redis()
+        if redis is not None:
+            try:
+                await redis.lpush(REDIS_AUDIT_LOG_KEY, json.dumps(entry))
+                await redis.ltrim(REDIS_AUDIT_LOG_KEY, 0, AUDIT_LOG_MAX - 1)
+            except Exception as e:
+                logger.warning("[Audit] Failed to persist audit event to Redis: %s", e)
+            return
+        self._audit_log.appendleft(entry)
+
+    async def get_audit_log(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Returns the most recent audit entries, newest first."""
+        limit = max(1, min(limit, AUDIT_LOG_MAX))
+        redis = self._get_redis()
+        if redis is not None:
+            raw_entries = await redis.lrange(REDIS_AUDIT_LOG_KEY, 0, limit - 1)
+            return [json.loads(e) for e in raw_entries]
+        return list(self._audit_log)[:limit]
 
     async def get_valid_oauth_token(self, proxy: Dict[str, Any]) -> tuple:
         """
@@ -718,7 +801,14 @@ class ProxyMCPManager:
                 }
 
                 # Audit Log entry
-                logger.info("[Audit] Proxy %s Tool %s -> %s %s [Status: %s]", proxy_id, tool_name, http_method, full_target_url, resp.status_code)
+                logger.info("[Audit] Proxy %s Tool %s -> %s %s [Status: %s]", proxy["proxy_id"], tool_name, http_method, full_target_url, resp.status_code)
+                await self.record_audit_event({
+                    "proxy_id": proxy["proxy_id"],
+                    "tool": tool_name,
+                    "method": http_method,
+                    "url": full_target_url,
+                    "status_code": resp.status_code,
+                })
 
                 return {
                     "jsonrpc": "2.0",
@@ -806,6 +896,13 @@ class ProxyMCPManager:
                         except Exception:
                             body_res = resp.text
                         output = {"status_code": resp.status_code, "response": body_res}
+                        await self.record_audit_event({
+                            "proxy_id": proxy["proxy_id"],
+                            "tool": tool_name,
+                            "method": "POST",
+                            "url": graphql_endpoint,
+                            "status_code": resp.status_code,
+                        })
                         return {
                             "jsonrpc": "2.0",
                             "id": req_id,

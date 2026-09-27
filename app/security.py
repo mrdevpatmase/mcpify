@@ -42,9 +42,35 @@ async def verify_admin_key(request: Request, api_key: str = Security(api_key_hea
     return provided_key
 
 
+_warned_missing_encryption_key = False
+
+
 def _get_encryption_key() -> bytes:
-    """Derive 32-byte key for Fernet AES-256 encryption."""
-    secret = os.getenv("ENCRYPTION_KEY", "mcpify_default_secret_key_change_in_prod")
+    """
+    Derive a 32-byte key for Fernet (AES-128-CBC + HMAC, despite the
+    "AES-256" shorthand this is usually described by) encryption of
+    secrets at rest.
+
+    The hardcoded fallback below is a real value sitting in this repo's
+    git history forever - anyone who can read the source (which is
+    everyone; this repo isn't private infra) can derive the exact same
+    key from it. That's not "weaker encryption", it's no encryption at
+    all: it stops a casual glance at a Redis dump, nothing else. Warn
+    loudly (once, not on every single call) rather than silently
+    degrading to security theater with no visible signal that
+    ENCRYPTION_KEY was never actually configured.
+    """
+    global _warned_missing_encryption_key
+    secret = os.getenv("ENCRYPTION_KEY")
+    if not secret:
+        if not _warned_missing_encryption_key:
+            logger.warning(
+                "[Security] ENCRYPTION_KEY is not set - falling back to a hardcoded default that provides "
+                "NO real protection (it's public, in this repo's source). Set ENCRYPTION_KEY in the environment "
+                "to a long random value to actually encrypt secrets at rest."
+            )
+            _warned_missing_encryption_key = True
+        secret = "mcpify_default_secret_key_change_in_prod"
     key_bytes = hashlib.sha256(secret.encode("utf-8")).digest()
     return base64.urlsafe_b64encode(key_bytes)
 
@@ -57,8 +83,12 @@ def encrypt_secret(plain_text: Optional[str]) -> Optional[str]:
         from cryptography.fernet import Fernet
         f = Fernet(_get_encryption_key())
         return "enc:" + f.encrypt(plain_text.encode("utf-8")).decode("utf-8")
-    except Exception:
-        # Fallback if cryptography module is not installed or error occurs
+    except Exception as e:
+        # A silent fallback here means secrets get written to Redis in
+        # PLAINTEXT with no error and no visible sign anything went
+        # wrong - the one failure mode a "protect secrets at rest"
+        # feature can least afford to have pass unnoticed.
+        logger.warning("[Security] encrypt_secret failed, storing value unencrypted: %s", e)
         return plain_text
 
 

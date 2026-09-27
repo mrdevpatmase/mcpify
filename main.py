@@ -214,8 +214,13 @@ async def health_check():
 
 
 @app.get("/metrics", summary="Operational Metrics")
-async def get_metrics():
-    """Returns operational metrics for production monitoring."""
+async def get_metrics(_admin: Optional[str] = Depends(verify_admin_key)):
+    """
+    Returns operational metrics for production monitoring. Gated by
+    verify_admin_key: this reveals whether admin auth/encryption are
+    even turned on, which is exactly the kind of thing that shouldn't
+    be handed to an unauthenticated caller sizing up the deployment.
+    """
     proxies = await proxy_manager.list_proxies()
     return {
         "status": "healthy",
@@ -436,7 +441,9 @@ async def create_proxy_endpoint(request: Request, payload: CreateProxyRequest):
 
 
 @app.get("/oauth/callback", summary="OAuth2 Authorization Code Callback")
+@limiter.limit("30/minute")
 async def oauth_callback(
+    request: Request,
     code: Optional[str] = Query(None),
     state: Optional[str] = Query(None),
     error: Optional[str] = Query(None),
@@ -503,13 +510,32 @@ async def oauth_callback(
 
 
 @app.get("/proxy/list", summary="List Active Proxies")
-async def list_proxies_endpoint():
-    """List all active proxy sessions."""
+@limiter.limit("20/minute")
+async def list_proxies_endpoint(request: Request, _admin: Optional[str] = Depends(verify_admin_key)):
+    """
+    List all active proxy sessions. Gated by verify_admin_key: even
+    with secrets masked (see ProxyMCPManager.list_proxies), this still
+    reveals every target_url anyone has ever proxied - not something an
+    unauthenticated caller should be able to enumerate.
+    """
     proxies = await proxy_manager.list_proxies()
     return {
         "proxies": proxies,
         "total": len(proxies)
     }
+
+
+@app.get("/admin/audit-log", summary="Recent Proxy Call Audit Log")
+@limiter.limit("20/minute")
+async def get_audit_log_endpoint(
+    request: Request,
+    limit: int = Query(100, ge=1, le=500),
+    _admin: Optional[str] = Depends(verify_admin_key),
+):
+    """Returns the most recent tool-call audit entries (proxy_id, tool,
+    method, url, status_code, timestamp), newest first."""
+    entries = await proxy_manager.get_audit_log(limit=limit)
+    return {"entries": entries, "count": len(entries)}
 
 
 @app.get("/proxy/{proxy_id}/health", summary="Check Proxy & Target Health")
