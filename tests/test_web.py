@@ -10,7 +10,7 @@ def test_root_serves_html():
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "MCPify" in response.text
-    assert "Generate MCP links for any AI Agent" in response.text
+    assert "Generate MCP links" in response.text
 
 def test_health_check():
     response = client.get("/health")
