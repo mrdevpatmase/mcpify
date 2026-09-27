@@ -34,10 +34,9 @@ from app.rate_limit import limiter
 # Load environment variables
 load_dotenv()
 
-logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO"),
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+from app.logging_config import configure_logging
+
+configure_logging()
 logger = logging.getLogger("mcpify")
 
 # Pre-initialize FastMCP ASGI apps (SSE transport & Streamable HTTP transport)
@@ -552,6 +551,22 @@ async def get_audit_log_endpoint(
     method, url, status_code, timestamp), newest first."""
     entries = await proxy_manager.get_audit_log(limit=limit)
     return {"entries": entries, "count": len(entries)}
+
+
+@app.delete("/admin/proxy/{proxy_id}", summary="Delete a Proxy")
+@limiter.limit("20/minute")
+async def delete_proxy_endpoint(
+    request: Request,
+    proxy_id: str,
+    _admin: Optional[str] = Depends(verify_admin_key),
+):
+    """Permanently removes a proxy - the only way to get rid of one
+    (a wrong target, a credential that needs revoking now) short of
+    waiting out its 90-day TTL."""
+    deleted = await proxy_manager.delete_proxy(proxy_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Proxy ID '{proxy_id}' not found.")
+    return {"deleted": True, "proxy_id": proxy_id}
 
 
 @app.get("/proxy/{proxy_id}/health", summary="Check Proxy & Target Health")

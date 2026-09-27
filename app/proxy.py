@@ -68,6 +68,50 @@ REDIS_KEY_PREFIX = "mcpify:proxy:"
 REDIS_INDEX_PREFIX = "mcpify:proxy_by_url:"
 REDIS_AUDIT_LOG_KEY = "mcpify:audit_log"
 AUDIT_LOG_MAX = 500
+PROXY_TTL_SECONDS = 90 * 24 * 3600  # 90 days
+PER_PROXY_RATE_LIMIT = 60
+PER_PROXY_RATE_WINDOW_SECONDS = 60
+MAX_OUTBOUND_PAYLOAD_BYTES = 256 * 1024  # 256KB
+
+
+def _payload_too_large(payload: Any, max_bytes: int = MAX_OUTBOUND_PAYLOAD_BYTES) -> bool:
+    """
+    Caps the size of a request body this proxy will forward on a
+    caller's behalf. Without this, call_api/graphql_query would happily
+    forward an arbitrarily large json_data/variables blob to whatever
+    target_url this proxy points at - combined with the SSRF guard
+    already scoping that target to a public address, this is about
+    abuse/cost containment (tying up this app's own outbound bandwidth
+    and the target's processing on a huge payload) rather than a
+    security boundary on its own.
+    """
+    if payload is None:
+        return False
+    try:
+        size = len(json.dumps(payload).encode("utf-8"))
+    except Exception:
+        return False
+    return size > max_bytes
+
+
+def _is_proxy_expired(proxy: Dict[str, Any]) -> bool:
+    """
+    In-memory-only check (Redis expiry is handled natively by the key's
+    own TTL, refreshed on every save - see _redis_save_proxy). Without
+    this, a proxy record created once would sit in self.proxies forever
+    even after months of nobody using it, growing unbounded on a
+    long-lived in-memory deployment the same way the Redis-backed one
+    would without a TTL.
+    """
+    last_used = proxy.get("last_used")
+    if not last_used:
+        return False
+    try:
+        last_used_dt = datetime.fromisoformat(last_used)
+    except ValueError:
+        return False
+    age_seconds = (datetime.now(timezone.utc) - last_used_dt).total_seconds()
+    return age_seconds > PROXY_TTL_SECONDS
 
 _ENCRYPTED_OAUTH_FIELDS = ("client_secret", "cached_token", "refresh_token")
 
@@ -132,6 +176,7 @@ class ProxyMCPManager:
         self.sessions: Dict[str, asyncio.Queue] = {}
         self._pending_oauth_states: Dict[str, tuple] = {}
         self._audit_log: deque = deque(maxlen=AUDIT_LOG_MAX)
+        self._proxy_call_timestamps: Dict[str, deque] = {}
 
     def _get_redis(self):
         if not self.redis_url:
@@ -200,6 +245,13 @@ class ProxyMCPManager:
                     # cached proxy kept returning the old, now-dead host.
                     existing["proxy_url"] = f"{current_base_url}/proxy/{existing['proxy_id']}/mcp"
                     await self._redis_save_proxy(redis, existing)
+                    # Slide the index entry's TTL too, or it could expire
+                    # before the record it points to does (the record
+                    # itself refreshes on every save above) - not
+                    # corruption, just a live proxy silently becoming
+                    # undiscoverable by target_url until its record's own
+                    # TTL also lapses.
+                    await redis.expire(f"{REDIS_INDEX_PREFIX}{target_url}", PROXY_TTL_SECONDS)
                     return existing
 
             proxy_id = str(uuid.uuid4())[:8]
@@ -227,7 +279,7 @@ class ProxyMCPManager:
             # dedup lookup). NX makes only one of them actually win the
             # index slot; the loser reuses the winner's record instead of
             # leaving its own orphaned.
-            claimed = await redis.set(f"{REDIS_INDEX_PREFIX}{target_url}", proxy_id, nx=True)
+            claimed = await redis.set(f"{REDIS_INDEX_PREFIX}{target_url}", proxy_id, nx=True, ex=PROXY_TTL_SECONDS)
             if not claimed:
                 winner_id = await redis.get(f"{REDIS_INDEX_PREFIX}{target_url}")
                 winner = await self._redis_get_proxy(redis, winner_id) if winner_id else None
@@ -242,6 +294,7 @@ class ProxyMCPManager:
                     winner["graphql_config"] = graphql_config
                     winner["proxy_url"] = f"{current_base_url}/proxy/{winner['proxy_id']}/mcp"
                     await self._redis_save_proxy(redis, winner)
+                    await redis.expire(f"{REDIS_INDEX_PREFIX}{target_url}", PROXY_TTL_SECONDS)
                     return winner
                 # Winner's own record vanished somehow - fall through and
                 # save ours anyway rather than returning nothing usable.
@@ -288,7 +341,13 @@ class ProxyMCPManager:
         return _decrypt_proxy_secrets(json.loads(raw))
 
     async def _redis_save_proxy(self, redis, proxy: Dict[str, Any]) -> None:
-        await redis.set(f"{REDIS_KEY_PREFIX}{proxy['proxy_id']}", json.dumps(_encrypt_proxy_secrets(proxy)))
+        # ex=PROXY_TTL_SECONDS on every save (not just at creation) makes
+        # this a SLIDING expiry - get_proxy below re-saves on every
+        # touch, so an actively-used proxy's TTL keeps resetting and only
+        # a genuinely abandoned one (90 days untouched) actually expires.
+        await redis.set(
+            f"{REDIS_KEY_PREFIX}{proxy['proxy_id']}", json.dumps(_encrypt_proxy_secrets(proxy)), ex=PROXY_TTL_SECONDS
+        )
 
     async def get_proxy(self, proxy_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve proxy configuration by proxy ID, or None if it doesn't exist."""
@@ -303,6 +362,9 @@ class ProxyMCPManager:
             return proxy
 
         proxy = self.proxies.get(proxy_id)
+        if proxy and _is_proxy_expired(proxy):
+            del self.proxies[proxy_id]
+            return None
         if proxy:
             proxy["last_used"] = now_str
         return proxy
@@ -318,7 +380,7 @@ class ProxyMCPManager:
                 raw_values = await redis.mget(keys)
                 proxies = [json.loads(v) for v in raw_values if v]
         else:
-            proxies = list(self.proxies.values())
+            proxies = [p for p in self.proxies.values() if not _is_proxy_expired(p)]
 
         result = []
         for proxy in proxies:
@@ -327,6 +389,26 @@ class ProxyMCPManager:
             sanitized["has_oauth"] = bool(proxy.get("oauth_config"))
             result.append(sanitized)
         return result
+
+    async def delete_proxy(self, proxy_id: str) -> bool:
+        """
+        Permanently removes a proxy record. There was previously no way
+        to get rid of one at all short of waiting out its TTL or wiping
+        Redis - if a proxy got created against the wrong target, or a
+        credential needs to be revoked immediately rather than just
+        expiring naturally, this is the only way to do that right now.
+        Returns True if a record was actually found and removed.
+        """
+        redis = self._get_redis()
+        if redis is not None:
+            proxy = await self._redis_get_proxy(redis, proxy_id)
+            if not proxy:
+                return False
+            await redis.delete(f"{REDIS_KEY_PREFIX}{proxy_id}")
+            await redis.delete(f"{REDIS_INDEX_PREFIX}{proxy['target_url']}")
+            return True
+
+        return self.proxies.pop(proxy_id, None) is not None
 
     async def record_ping_status(self, proxy_id: str, status_code: Optional[int]) -> None:
         """Record the last health-ping status against the live proxy record.
@@ -346,6 +428,33 @@ class ProxyMCPManager:
         proxy = self.proxies.get(proxy_id)
         if proxy:
             proxy["last_ping_status"] = status_code
+
+    def _check_per_proxy_rate_limit(self, proxy_id: str) -> bool:
+        """
+        Returns False if this proxy_id has already made
+        PER_PROXY_RATE_LIMIT tool calls within the last
+        PER_PROXY_RATE_WINDOW_SECONDS. Deliberately separate from the
+        endpoint-level slowapi limits on /proxy/create etc: those are
+        keyed by caller IP on ONE route shared by every proxy, so one
+        hot/abused proxy_id could still exhaust the whole route's budget
+        for everyone else. This isolates each proxy's own quota.
+
+        In-memory and per-process, unlike the Redis-backed proxy
+        records - a hard cross-instance guarantee isn't the goal here,
+        just a safety net against one connector hammering its target
+        (or this app) into the ground; Render's current single-instance
+        deployment makes that gap moot anyway, and a determined abuser
+        already has to own the proxy_id to hit this at all.
+        """
+        now = time.time()
+        window_start = now - PER_PROXY_RATE_WINDOW_SECONDS
+        timestamps = self._proxy_call_timestamps.setdefault(proxy_id, deque())
+        while timestamps and timestamps[0] < window_start:
+            timestamps.popleft()
+        if len(timestamps) >= PER_PROXY_RATE_LIMIT:
+            return False
+        timestamps.append(now)
+        return True
 
     async def record_audit_event(self, event: Dict[str, Any]) -> None:
         """
@@ -640,6 +749,20 @@ class ProxyMCPManager:
             }
 
         elif method == "tools/call":
+            if not self._check_per_proxy_rate_limit(proxy["proxy_id"]):
+                return {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "result": {
+                        "content": [{
+                            "type": "text",
+                            "text": f"Rate limit exceeded: this proxy allows {PER_PROXY_RATE_LIMIT} tool calls per {PER_PROXY_RATE_WINDOW_SECONDS}s. Try again shortly."
+                        }],
+                        "isError": True,
+                        "errorType": "rate_limited"
+                    }
+                }
+
             tool_name = params.get("name")
             args = params.get("arguments", {})
             if not isinstance(args, dict):
@@ -673,7 +796,8 @@ class ProxyMCPManager:
                             "id": req_id,
                             "result": {
                                 "content": [{"type": "text", "text": built["error"]}],
-                                "isError": True
+                                "isError": True,
+                                "errorType": "invalid_input"
                             }
                         }
                     endpoint = built["path"]
@@ -693,6 +817,17 @@ class ProxyMCPManager:
 
                 full_target_url = f"{effective_base}{endpoint}"
 
+                if _payload_too_large(json_payload):
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "result": {
+                            "content": [{"type": "text", "text": f"Request body exceeds the {MAX_OUTBOUND_PAYLOAD_BYTES} byte limit."}],
+                            "isError": True,
+                            "errorType": "payload_too_large"
+                        }
+                    }
+
                 unsafe_reason = await _revalidate_target_safety(effective_base)
                 if unsafe_reason:
                     return {
@@ -702,7 +837,8 @@ class ProxyMCPManager:
                             "content": [
                                 {"type": "text", "text": f"Refusing to call target: {unsafe_reason}"}
                             ],
-                            "isError": True
+                            "isError": True,
+                            "errorType": "target_blocked"
                         }
                     }
 
@@ -714,7 +850,8 @@ class ProxyMCPManager:
                         "id": req_id,
                         "result": {
                             "content": [{"type": "text", "text": f"OAuth2 token refresh failed: {oauth_error}"}],
-                            "isError": True
+                            "isError": True,
+                            "errorType": "auth_failed"
                         }
                     }
                 if oauth_token:
@@ -781,7 +918,8 @@ class ProxyMCPManager:
                                     "text": f"Error connecting to target endpoint {full_target_url}: {str(last_error or 'Network failure')}"
                                 }
                             ],
-                            "isError": True
+                            "isError": True,
+                            "errorType": "upstream_unreachable"
                         }
                     }
 
@@ -831,7 +969,8 @@ class ProxyMCPManager:
                         "id": req_id,
                         "result": {
                             "content": [{"type": "text", "text": "No GraphQL schema was discovered on this target."}],
-                            "isError": True
+                            "isError": True,
+                            "errorType": "not_found"
                         }
                     }
 
@@ -851,11 +990,23 @@ class ProxyMCPManager:
                         "id": req_id,
                         "result": {
                             "content": [{"type": "text", "text": "Missing required 'query' argument."}],
-                            "isError": True
+                            "isError": True,
+                            "errorType": "invalid_input"
                         }
                     }
                 variables = args.get("variables")
                 graphql_endpoint = graphql_config["endpoint"]
+
+                if _payload_too_large({"query": query, "variables": variables}):
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "result": {
+                            "content": [{"type": "text", "text": f"Request body exceeds the {MAX_OUTBOUND_PAYLOAD_BYTES} byte limit."}],
+                            "isError": True,
+                            "errorType": "payload_too_large"
+                        }
+                    }
 
                 unsafe_reason = await _revalidate_target_safety(graphql_endpoint)
                 if unsafe_reason:
@@ -864,7 +1015,8 @@ class ProxyMCPManager:
                         "id": req_id,
                         "result": {
                             "content": [{"type": "text", "text": f"Refusing to call target: {unsafe_reason}"}],
-                            "isError": True
+                            "isError": True,
+                            "errorType": "target_blocked"
                         }
                     }
 
@@ -876,7 +1028,8 @@ class ProxyMCPManager:
                         "id": req_id,
                         "result": {
                             "content": [{"type": "text", "text": f"OAuth2 token refresh failed: {oauth_error}"}],
-                            "isError": True
+                            "isError": True,
+                            "errorType": "auth_failed"
                         }
                     }
                 if oauth_token:
@@ -916,7 +1069,8 @@ class ProxyMCPManager:
                         "id": req_id,
                         "result": {
                             "content": [{"type": "text", "text": f"Error connecting to GraphQL endpoint {graphql_endpoint}: {str(e)}"}],
-                            "isError": True
+                            "isError": True,
+                            "errorType": "upstream_unreachable"
                         }
                     }
 
@@ -957,7 +1111,8 @@ class ProxyMCPManager:
                         "id": req_id,
                         "result": {
                             "content": [{"type": "text", "text": json.dumps(res, indent=2)}],
-                            "isError": True
+                            "isError": True,
+                            "errorType": "target_blocked"
                         }
                     }
                 try:
