@@ -14,6 +14,8 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 class SignupRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
 
 
 class LoginRequest(BaseModel):
@@ -33,7 +35,12 @@ async def signup(request: Request, payload: SignupRequest, db: AsyncSession = De
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="An account with this email already exists.")
 
-    user = User(email=payload.email, hashed_password=hash_password(payload.password))
+    user = User(
+        email=payload.email,
+        hashed_password=hash_password(payload.password),
+        first_name=payload.first_name,
+        last_name=payload.last_name,
+    )
     db.add(user)
     await db.commit()
 
@@ -58,5 +65,7 @@ async def me(current_user: User = Depends(get_current_user)):
     return {
         "id": current_user.id,
         "email": current_user.email,
+        "first_name": current_user.first_name,
+        "last_name": current_user.last_name,
         "created_at": current_user.created_at.isoformat(),
     }

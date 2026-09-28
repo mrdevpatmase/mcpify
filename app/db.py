@@ -2,6 +2,7 @@ import os
 from typing import AsyncGenerator, Tuple
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -99,11 +100,22 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    """Creates tables that don't exist yet. Called once at app startup
+    """
+    Creates tables that don't exist yet. Called once at app startup
     (main.py's lifespan) - idempotent, safe to run on every boot. A
     schema-migration tool (Alembic) is the right next step once this
-    schema needs to actually change under live data; there's only one
-    table so far, so that's deferred until it's needed."""
+    schema needs to change more than occasionally; deferred until it's
+    actually needed.
+
+    create_all only creates whole NEW tables - it does nothing for a
+    column added to an existing model when the table already exists in
+    a live database (this one has real signed-up users already), so an
+    added column needs its own explicit, idempotent ADD COLUMN here or
+    every INSERT/SELECT referencing it breaks against production with
+    "column does not exist" the moment the new code deploys.
+    """
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(100)"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)"))
