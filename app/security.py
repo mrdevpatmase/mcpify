@@ -18,18 +18,14 @@ logger = logging.getLogger("mcpify")
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
-async def verify_admin_key(request: Request, api_key: str = Security(api_key_header)) -> Optional[str]:
-    """
-    FastAPI dependency: Validates request against ADMIN_API_KEY environment variable.
-    If ADMIN_API_KEY is configured in .env/environment, requests MUST provide
-    a matching X-API-Key header or Bearer token.
-    If ADMIN_API_KEY is not set, admin endpoints remain open (for local dev mode).
-    """
-    expected_key = os.getenv("ADMIN_API_KEY")
+def _verify_key_against_env(env_var: str, request: Request, api_key: Optional[str]) -> Optional[str]:
+    """Shared logic behind verify_admin_key and verify_public_key: both gate
+    a route behind a bearer/X-API-Key header matching one env var, and both
+    stay open when that env var isn't set. Only the env var name differs."""
+    expected_key = os.getenv(env_var)
     if not expected_key:
-        return None  # Unprotected mode (local development)
+        return None  # Unprotected mode (unset = open, by design)
 
-    # Check X-API-Key header or Authorization: Bearer <key>
     auth_header = request.headers.get("Authorization", "")
     bearer_key = auth_header[7:].strip() if auth_header.startswith("Bearer ") else None
 
@@ -40,6 +36,57 @@ async def verify_admin_key(request: Request, api_key: str = Security(api_key_hea
             detail="Unauthorized: Invalid or missing X-API-Key / Authorization Bearer token."
         )
     return provided_key
+
+
+async def verify_admin_key(request: Request, api_key: str = Security(api_key_header)) -> Optional[str]:
+    """
+    FastAPI dependency: Validates request against ADMIN_API_KEY environment variable.
+    If ADMIN_API_KEY is configured in .env/environment, requests MUST provide
+    a matching X-API-Key header or Bearer token.
+    If ADMIN_API_KEY is not set, admin endpoints remain open (for local dev mode).
+    """
+    return _verify_key_against_env("ADMIN_API_KEY", request, api_key)
+
+
+async def verify_public_key(request: Request, api_key: str = Security(api_key_header)) -> Optional[str]:
+    """
+    FastAPI dependency: gates the public-facing /proxy/create, /analyze,
+    /generate, /guide endpoints behind PUBLIC_API_KEY when the operator sets
+    it. Unset (the default) keeps these endpoints open, preserving the
+    paste-a-URL-in-the-browser self-serve flow that browser JS can't hold a
+    secret for. Setting PUBLIC_API_KEY is an explicit opt-in for operators
+    who'd rather run this as a gated internal tool than a public product.
+    Deliberately a separate env var from ADMIN_API_KEY: "who can create
+    proxies" and "who can administer this deployment" are different trust
+    levels, and an operator may want one gated without the other.
+    """
+    return _verify_key_against_env("PUBLIC_API_KEY", request, api_key)
+
+
+def log_production_readiness_warnings() -> None:
+    """
+    Called once at app startup (main.py's lifespan). Render sets the RENDER
+    env var automatically on every deployed instance (never in local dev/CI),
+    so this only fires loudly for an actual production deployment, not every
+    pytest run or local `uvicorn main:app`.
+
+    Deliberately does NOT raise/exit: doing so would crash the service on
+    the next deploy for anyone who hasn't set these yet, turning a
+    visibility gap into an outage. This is the safer middle ground - an
+    unmissable startup-log warning instead of silence, without a new way
+    for the service to go down.
+    """
+    if not os.getenv("RENDER"):
+        return
+    missing = [v for v in ("ENCRYPTION_KEY", "ADMIN_API_KEY") if not os.getenv(v)]
+    if missing:
+        logger.warning(
+            "[Security] Running on Render with %s NOT set. %s "
+            "See .env.example for what each controls and how to set them in the Render dashboard.",
+            " and ".join(missing),
+            "Secrets stored via the proxy API are only theater-encrypted (public fallback key)."
+            if "ENCRYPTION_KEY" in missing else "",
+        )
 
 
 _warned_missing_encryption_key = False

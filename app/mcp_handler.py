@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Dict, Any, Optional
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
@@ -8,6 +8,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from app.analyzer import analyze_agent_url
 from app.generator import generate_mcp_configurations
 from app.rate_limit import limiter
+from app.security import verify_public_key
 
 
 # ---------------------------------------------------------
@@ -248,7 +249,8 @@ async def mcp_tool_get_integration_guide(url: str, platform: str = "claude_deskt
 async def analyze_agent_endpoint(
     request: Request,
     payload: Optional[AnalyzeAgentRequest] = None,
-    url: Optional[str] = Query(None, description="The agent URL if using GET")
+    url: Optional[str] = Query(None, description="The agent URL if using GET"),
+    _public: Optional[str] = Depends(verify_public_key),
 ) -> Dict[str, Any]:
     target_url = payload.url if payload else url
     if not target_url:
@@ -268,7 +270,8 @@ async def analyze_agent_endpoint(
 async def generate_mcp_config_endpoint(
     request: Request,
     payload: Optional[GenerateConfigRequest] = None,
-    url: Optional[str] = Query(None, description="The agent URL if using GET")
+    url: Optional[str] = Query(None, description="The agent URL if using GET"),
+    _public: Optional[str] = Depends(verify_public_key),
 ) -> Dict[str, Any]:
     target_url = payload.url if payload else url
     if not target_url:
@@ -288,7 +291,8 @@ async def get_integration_guide_endpoint(
     request: Request,
     payload: Optional[IntegrationGuideRequest] = None,
     url: Optional[str] = Query(None, description="The agent URL if using GET"),
-    platform: PlatformEnum = Query(PlatformEnum.claude_desktop, description="Target platform")
+    platform: PlatformEnum = Query(PlatformEnum.claude_desktop, description="Target platform"),
+    _public: Optional[str] = Depends(verify_public_key),
 ) -> Dict[str, Any]:
     target_url = payload.url if payload else url
     target_platform = payload.platform.value if payload else platform.value

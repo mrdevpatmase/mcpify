@@ -24,7 +24,10 @@ from slowapi.errors import RateLimitExceeded
 from app.mcp_handler import router as mcp_router, mcp
 from app.proxy import proxy_manager
 from app.generator import generate_proxy_config
-from app.security import is_public_url, resolve_canonical_base, normalize_url, verify_admin_key
+from app.security import (
+    is_public_url, resolve_canonical_base, normalize_url,
+    verify_admin_key, verify_public_key, log_production_readiness_warnings,
+)
 from app.analyzer import verify_mcp_handshake
 from app.openapi_tools import discover_openapi_spec, parse_operations
 from app.graphql_tools import discover_graphql_schema
@@ -102,6 +105,8 @@ async def keep_alive_worker():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    log_production_readiness_warnings()
+
     # Startup: launch keep-alive background worker
     worker_task = asyncio.create_task(keep_alive_worker())
     logger.info("[MCPify] Keep-alive background worker initialized (interval: 10 mins).")
@@ -226,6 +231,7 @@ async def get_metrics(_admin: Optional[str] = Depends(verify_admin_key)):
         "active_proxies": len(proxies),
         "redis_connected": proxy_manager.redis_url is not None,
         "admin_auth_enabled": bool(os.getenv("ADMIN_API_KEY")),
+        "public_auth_enabled": bool(os.getenv("PUBLIC_API_KEY")),
         "encryption_enabled": bool(os.getenv("ENCRYPTION_KEY")),
         "scheduler_running": scheduler.running
     }
@@ -296,7 +302,11 @@ async def api_info():
 
 @app.post("/proxy/create", summary="Create Proxy MCP Endpoint")
 @limiter.limit("10/minute")
-async def create_proxy_endpoint(request: Request, payload: CreateProxyRequest):
+async def create_proxy_endpoint(
+    request: Request,
+    payload: CreateProxyRequest,
+    _public: Optional[str] = Depends(verify_public_key),
+):
     """Creates a proxy MCP endpoint for a target URL."""
     target_url = payload.url.strip()
     if not target_url:
