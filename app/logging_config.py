@@ -34,8 +34,13 @@ def configure_logging() -> None:
     dev, since a terminal full of JSON objects is worse to eyeball
     while actively debugging than the plain line was.
     """
-    level = os.getenv("LOG_LEVEL", "INFO")
-    log_format = os.getenv("LOG_FORMAT", "json").lower()
+    # `or` (not getenv's own default) so a variable that's SET but EMPTY -
+    # e.g. Vercel's env var UI writes "" for a field left blank, rather than
+    # omitting it entirely - still falls back correctly. getenv's default
+    # only kicks in when the var is completely unset, which crashed
+    # logging.setLevel("") in production the first time this ran on Vercel.
+    level = os.getenv("LOG_LEVEL") or "INFO"
+    log_format = (os.getenv("LOG_FORMAT") or "json").lower()
 
     handler = logging.StreamHandler()
     if log_format == "text":
