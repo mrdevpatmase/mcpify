@@ -1,0 +1,18 @@
+# Robots.txt for MCPify (https://mcpify.aikart.co)
+# Built by Aikart (https://aikart.co)
+
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /signup
+Allow: /navbar.css
+Allow: /aikart-ai-mark.png
+Allow: /sitemap.xml
+Disallow: /admin
+Disallow: /admin/
+Disallow: /proxy/
+Disallow: /api/
+Disallow: /auth/
+
+# Official Sitemap Location
+Sitemap: https://mcpify.aikart.co/sitemap.xml

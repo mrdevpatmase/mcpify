@@ -14,31 +14,170 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Auth gate: this landing page requires a logged-in session. Runs as
-       early as possible (synchronous localStorage read, before any other
-       script or the rest of <head> loads) so a logged-out visitor is
-       redirected to /login before the page paints, instead of seeing a
-       flash of the generator UI first. -->
+  <!-- Primary SEO Metadata -->
+  <title>MCPify — #1 Model Context Protocol (MCP) Server Bridge & Generator | Aikart</title>
+  <meta name="description" content="MCPify converts any AI agent, REST API, GraphQL, or OpenAPI specification into a Model Context Protocol (MCP) server instantly. Built by Aikart (aikart.co). Connect your APIs to Claude, Cursor, Windsurf, and VS Code.">
+  <meta name="keywords" content="mcpify, mcp, model context protocol, mcp server, mcp bridge, ai agent mcp, openapi to mcp, rest api to mcp, mcp server generator, mcp converter, aikart mcpify, claude desktop mcp, cursor mcp, windsurf mcp, fastapi mcp, json-rpc mcp">
+  <meta name="author" content="Aikart (aikart.co)">
+  <meta name="publisher" content="Aikart">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <link rel="canonical" href="https://mcpify.aikart.co/">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="icon" type="image/png" href="/aikart-ai-mark.png">
+  <meta name="theme-color" content="#1B4D3E">
+
+  <!-- Open Graph / Facebook / LinkedIn SEO -->
+  <meta property="og:site_name" content="MCPify">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="MCPify — #1 Model Context Protocol (MCP) Server Bridge & Generator">
+  <meta property="og:description" content="Convert any AI agent, OpenAPI spec, or REST API into a ready-to-use Model Context Protocol (MCP) server in seconds. Connect your tools to Claude, Cursor, and Windsurf. Built by Aikart.">
+  <meta property="og:url" content="https://mcpify.aikart.co/">
+  <meta property="og:image" content="https://mcpify.aikart.co/aikart-ai-mark.png">
+  <meta property="og:image:alt" content="MCPify Model Context Protocol Logo by Aikart">
+  <meta property="og:locale" content="en_US">
+
+  <!-- Twitter Card SEO -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@aikart_co">
+  <meta name="twitter:creator" content="@aikart_co">
+  <meta name="twitter:title" content="MCPify — Model Context Protocol (MCP) Server Generator | Aikart">
+  <meta name="twitter:description" content="Convert any AI agent, OpenAPI spec, or REST API into a Model Context Protocol (MCP) server instantly. Built by Aikart (aikart.co).">
+  <meta name="twitter:image" content="https://mcpify.aikart.co/aikart-ai-mark.png">
+
+  <!-- Structured Data JSON-LD Schemas -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "@id": "https://mcpify.aikart.co/#webapp",
+        "url": "https://mcpify.aikart.co/",
+        "name": "MCPify",
+        "alternateName": ["MCPify Bridge", "MCPify Generator", "MCPify AIkart", "MCP Server Builder"],
+        "headline": "Convert Any AI Agent or REST API into a Model Context Protocol (MCP) Server",
+        "description": "MCPify automatically analyzes AI agent URLs, REST APIs, GraphQL, and OpenAPI specifications, generating dual-mode HTTP/SSE Model Context Protocol (MCP) servers and configurations for Claude Desktop, Cursor, Windsurf, Cline, and VS Code.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "All",
+        "browserRequirements": "Requires JavaScript. Requires HTML5.",
+        "softwareVersion": "1.1.0",
+        "isAccessibleForFree": true,
+        "offers": {
+          "@type": "Offer",
+          "price": "0.00",
+          "priceCurrency": "USD",
+          "availability": "https://schema.org/InStock"
+        },
+        "creator": {
+          "@type": "Organization",
+          "@id": "https://aikart.co/#organization",
+          "name": "Aikart",
+          "url": "https://aikart.co",
+          "logo": "https://mcpify.aikart.co/aikart-ai-mark.png",
+          "sameAs": [
+            "https://aikart.co",
+            "https://github.com/devpatmase1/AIkart-mcpify"
+          ]
+        },
+        "publisher": {
+          "@id": "https://aikart.co/#organization"
+        },
+        "featureList": [
+          "Automatic AI Agent Framework Detection (FastAPI MCP, LangGraph, CrewAI, AutoGen)",
+          "OpenAPI Specification & Swagger to MCP Tool Parser",
+          "GraphQL Schema & Mutation to MCP Conversion",
+          "Dual-Mode MCP Endpoints (HTTP Streamable & Server-Sent Events)",
+          "One-Click Configurations for Claude Desktop, Cursor, Windsurf, Cline, and VS Code"
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://aikart.co/#organization",
+        "name": "Aikart",
+        "url": "https://aikart.co",
+        "logo": "https://mcpify.aikart.co/aikart-ai-mark.png"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://mcpify.aikart.co/#breadcrumb",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://mcpify.aikart.co/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "MCP Generator",
+            "item": "https://mcpify.aikart.co/"
+          }
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://mcpify.aikart.co/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is MCPify?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "MCPify is an open-source bridge and generator created by Aikart (aikart.co) that converts any AI agent URL, REST API endpoint, GraphQL API, or OpenAPI specification into a fully compliant Model Context Protocol (MCP) server with instant JSON configs for Claude Desktop, Cursor, Windsurf, Cline, and VS Code."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is Model Context Protocol (MCP)?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Model Context Protocol (MCP) is an open standard developed by Anthropic that enables AI assistants (such as Claude Desktop, Cursor, and Windsurf) to securely access local and remote data sources, tools, and APIs seamlessly."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I connect an MCPify server to Claude Desktop or Cursor?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Paste your target API or agent URL into the MCPify generator on mcpify.aikart.co. MCPify analyzes the target, builds the tool definitions, and outputs ready-to-use JSON configuration snippets. Copy and paste the snippet directly into your Claude Desktop config file (claude_desktop_config.json) or Cursor MCP settings."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does MCPify support REST APIs without native MCP support?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes! MCPify features a dynamic proxy engine that wraps standard REST APIs, OpenAPI/Swagger specifications, and GraphQL endpoints into live MCP SSE and Streamable HTTP endpoints automatically."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is MCPify free to use?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, MCPify is free and hosted by Aikart at mcpify.aikart.co for developers, AI engineers, and prompt engineers."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+
+  <!-- Non-blocking Session Check -->
   <script>
     (function () {
       var token = null;
       try { token = localStorage.getItem('mcpify_token'); } catch (e) {}
-      if (!token) {
-        window.location.replace('/login');
-        return;
+      if (token) {
+        fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+          .catch(function () {
+            try { localStorage.removeItem('mcpify_token'); } catch (e) {}
+          });
       }
-      fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
-        .then(function (r) { if (!r.ok) throw new Error('invalid'); })
-        .catch(function () {
-          try { localStorage.removeItem('mcpify_token'); } catch (e) {}
-          window.location.replace('/login');
-        });
     })();
   </script>
-
-  <title>MCPify — Model Context Protocol Bridge | By Aikart.co</title>
-  <meta name="description"
-    content="Generate ready-to-use Model Context Protocol (MCP) configs for any AI agent or REST API. Built by Aikart (aikart.co).">
 
   <!-- Modern Typography: Red Hat Display (Titles), Poppins (Desc/Body), JetBrains Mono (Code) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1262,11 +1401,10 @@
 
         <!-- Left Column -->
         <div class="hero-left">
-          <span class="hero-tagline">Model Context Protocol bridge</span>
-          <h1 class="hero-title">Generate MCP links<br>for any AI agent</h1>
+          <span class="hero-tagline">Model Context Protocol (MCP) Bridge & Generator</span>
+          <h1 class="hero-title">MCPify: Convert Any AI Agent or API into an MCP Server — Generate MCP links</h1>
           <p class="hero-desc">
-            Turn any deployed agent or REST API into a standardized MCP server in seconds, ready to plug into the tools
-            your team already uses.
+            Instantly turn any AI agent, REST API, GraphQL, or OpenAPI specification into a standardized Model Context Protocol (MCP) server for Claude Desktop, Cursor, Windsurf, and VS Code. Built by <a href="https://aikart.co" target="_blank" rel="noopener noreferrer" style="color: var(--brand-green); font-weight: 600;">Aikart</a>.
           </p>
 
           <!-- Client Pills with Brand Logos -->
@@ -1728,6 +1866,60 @@
 
       </div>
 
+      <!-- SEO Knowledge & FAQ Section -->
+      <section class="seo-faq-section" style="margin-top: 64px; margin-bottom: 40px;">
+        <div class="compat-header">
+          <h2 class="compat-title" style="font-size: 2rem;">Model Context Protocol (MCP) & MCPify Guide</h2>
+          <p class="compat-subtitle">
+            Everything you need to know about connecting AI agents, REST APIs, and OpenAPI specs to Claude Desktop, Cursor, and Windsurf using MCPify by <a href="https://aikart.co" target="_blank" rel="noopener noreferrer" style="color: var(--brand-green); font-weight: 600;">Aikart.co</a>.
+          </p>
+        </div>
+
+        <div class="faq-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+          <article class="nude-card" style="background: rgba(243, 244, 246, 0.65); padding: 24px; border-radius: 24px; border: 1px solid var(--border-subtle);">
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: #111827; margin-bottom: 8px;">What is MCPify?</h3>
+            <p style="font-size: 0.88rem; color: #4B5563; line-height: 1.6;">
+              <strong>MCPify</strong> is an open-source bridge and generator hosted at <a href="https://mcpify.aikart.co/" style="color: var(--brand-green); font-weight: 600;">mcpify.aikart.co</a>. It converts any deployed AI agent, OpenAPI specification, GraphQL API, or standard REST API into a fully compliant Model Context Protocol (MCP) server.
+            </p>
+          </article>
+
+          <article class="nude-card" style="background: rgba(243, 244, 246, 0.65); padding: 24px; border-radius: 24px; border: 1px solid var(--border-subtle);">
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: #111827; margin-bottom: 8px;">What is Model Context Protocol (MCP)?</h3>
+            <p style="font-size: 0.88rem; color: #4B5563; line-height: 1.6;">
+              <strong>Model Context Protocol (MCP)</strong> is an open standard developed by Anthropic that allows AI applications (such as Claude Desktop, Cursor, and Windsurf) to securely connect to external APIs, databases, and custom tools with standardized JSON-RPC protocols.
+            </p>
+          </article>
+
+          <article class="nude-card" style="background: rgba(243, 244, 246, 0.65); padding: 24px; border-radius: 24px; border: 1px solid var(--border-subtle);">
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: #111827; margin-bottom: 8px;">How do I connect an MCP server to Claude Desktop?</h3>
+            <p style="font-size: 0.88rem; color: #4B5563; line-height: 1.6;">
+              Simply paste your target API or agent URL into the MCPify generator, copy the generated JSON snippet, and paste it under the <code style="background: #E5E7EB; padding: 2px 6px; border-radius: 4px; font-family: monospace;">mcpServers</code> section of your <code style="background: #E5E7EB; padding: 2px 6px; border-radius: 4px; font-family: monospace;">claude_desktop_config.json</code> file.
+            </p>
+          </article>
+
+          <article class="nude-card" style="background: rgba(243, 244, 246, 0.65); padding: 24px; border-radius: 24px; border: 1px solid var(--border-subtle);">
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: #111827; margin-bottom: 8px;">How does MCPify handle REST APIs without native MCP?</h3>
+            <p style="font-size: 0.88rem; color: #4B5563; line-height: 1.6;">
+              When an API lacks native MCP endpoints, MCPify automatically creates a dynamic <strong>MCP Proxy Server</strong>. It inspects OpenAPI specs or endpoints, converts API routes into callable MCP tools, and exposes both Server-Sent Events (SSE) and Streamable HTTP endpoints.
+            </p>
+          </article>
+
+          <article class="nude-card" style="background: rgba(243, 244, 246, 0.65); padding: 24px; border-radius: 24px; border: 1px solid var(--border-subtle);">
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: #111827; margin-bottom: 8px;">Which AI clients are supported?</h3>
+            <p style="font-size: 0.88rem; color: #4B5563; line-height: 1.6;">
+              MCPify provides one-click configurations for <strong>Claude Desktop</strong>, <strong>Cursor IDE</strong>, <strong>Windsurf</strong>, <strong>Cline</strong>, <strong>VS Code</strong>, and <strong>Claude Code CLI</strong>.
+            </p>
+          </article>
+
+          <article class="nude-card" style="background: rgba(243, 244, 246, 0.65); padding: 24px; border-radius: 24px; border: 1px solid var(--border-subtle);">
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: #111827; margin-bottom: 8px;">Is MCPify built by Aikart?</h3>
+            <p style="font-size: 0.88rem; color: #4B5563; line-height: 1.6;">
+              Yes! MCPify is part of the <a href="https://aikart.co" target="_blank" rel="noopener noreferrer" style="color: var(--brand-green); font-weight: 600;">Aikart Agent Ecosystem</a> (aikart.co), building state-of-the-art autonomous agents, tool bridges, and agentic infrastructure.
+            </p>
+          </article>
+        </div>
+      </section>
+
     </div>
   </main>
 
@@ -1735,11 +1927,14 @@
   <footer>
     <div class="container footer-inner">
       <div class="footer-brand">
-        <strong>MCPify</strong> — Model Context Protocol Bridge &bull; An AI Agent by <a href="https://aikart.co"
-          target="_blank" rel="noopener noreferrer" style="font-weight: 600; color: #111827;">Aikart.co</a>
+        <strong>MCPify</strong> — Model Context Protocol Bridge & Generator &bull; Built by <a href="https://aikart.co"
+          target="_blank" rel="noopener noreferrer" style="font-weight: 600; color: #111827;">Aikart (aikart.co)</a>
       </div>
       <div class="footer-links">
-        <a href="https://aikart.co" target="_blank" rel="noopener noreferrer">Aikart Home ↗</a>
+        <a href="https://mcpify.aikart.co/">MCPify Home</a>
+        <a href="https://aikart.co" target="_blank" rel="noopener noreferrer">Aikart Ecosystem ↗</a>
+        <a href="/sitemap.xml" target="_blank">Sitemap</a>
+        <a href="/robots.txt" target="_blank">Robots.txt</a>
         <a href="/docs" target="_blank">OpenAPI Docs</a>
         <a href="/health" target="_blank">Health</a>
       </div>

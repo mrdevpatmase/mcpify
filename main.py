@@ -321,6 +321,27 @@ async def root():
     return render_web_page()
 
 
+@app.get("/sitemap.xml", include_in_schema=False)
+async def sitemap_xml():
+    """Serves the XML sitemap for search engines."""
+    web_dir = os.path.join(os.path.dirname(__file__), "app", "web")
+    path = os.path.join(web_dir, "sitemap.xml")
+    if os.path.exists(path):
+        return FileResponse(path, media_type="application/xml")
+    raise HTTPException(status_code=404, detail="sitemap.xml not found")
+
+
+@app.get("/robots.txt", include_in_schema=False)
+async def robots_txt():
+    """Serves robots.txt for search engine crawlers."""
+    web_dir = os.path.join(os.path.dirname(__file__), "app", "web")
+    path = os.path.join(web_dir, "robots.txt")
+    if os.path.exists(path):
+        return FileResponse(path, media_type="text/plain")
+    raise HTTPException(status_code=404, detail="robots.txt not found")
+
+
+
 @app.get("/login", summary="Login Page", response_class=HTMLResponse, include_in_schema=False)
 async def login_page():
     return render_web_page("login.html")

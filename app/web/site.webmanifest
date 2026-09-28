@@ -1,0 +1,16 @@
+{
+  "name": "MCPify — Model Context Protocol Bridge",
+  "short_name": "MCPify",
+  "description": "Convert any AI agent, OpenAPI spec, or REST API into a Model Context Protocol (MCP) server.",
+  "icons": [
+    {
+      "src": "/aikart-ai-mark.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#1B4D3E",
+  "background_color": "#FFFFFF",
+  "start_url": "/",
+  "display": "standalone"
+}

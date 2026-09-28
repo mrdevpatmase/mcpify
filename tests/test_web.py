@@ -34,3 +34,18 @@ def test_generate_config():
     assert "cline" in data["configs"]
     assert "vscode" in data["configs"]
     assert "claude_code_cli" in data["configs"]
+
+def test_sitemap_xml():
+    response = client.get("/sitemap.xml")
+    assert response.status_code == 200
+    assert "xml" in response.headers["content-type"]
+    assert "https://mcpify.aikart.co/" in response.text
+
+def test_robots_txt():
+    response = client.get("/robots.txt")
+    assert response.status_code == 200
+    assert "text/plain" in response.headers["content-type"]
+    assert "User-agent: *" in response.text
+    assert "Sitemap: https://mcpify.aikart.co/sitemap.xml" in response.text
+
+
