@@ -6,29 +6,62 @@ _client = None
 
 
 def _get_client():
-    """Lazy singleton, same pattern as app/db.py's engine - only actually
+    """
+    Lazy singleton, same pattern as app/db.py's engine - only actually
     builds credentials/client on first real use, so importing this module
-    (and running the test suite) never needs GA configured."""
+    (and running the test suite) never needs GA configured.
+
+    Two auth paths, tried in this order:
+    1. OAuth refresh token (GA_OAUTH_CLIENT_ID/SECRET/REFRESH_TOKEN) - the
+       one actually in use here, because this Google Cloud org enforces
+       iam.disableServiceAccountKeyCreation, which blocks the usual
+       service-account-JSON approach entirely (key creation itself fails,
+       org-policy-admin-only to lift). A refresh token isn't a service
+       account key, so it isn't affected by that constraint - obtained
+       once via a local InstalledAppFlow consent run, then reusable
+       indefinitely (refresh tokens don't expire unless revoked).
+    2. Service account JSON (GOOGLE_ANALYTICS_CREDENTIALS_JSON) - kept as
+       an alternative for any deployment where service account keys
+       aren't blocked by org policy; simpler if it's available.
+    """
     global _client
     if _client is not None:
         return _client
 
-    creds_json = os.getenv("GOOGLE_ANALYTICS_CREDENTIALS_JSON")
-    if not creds_json:
-        raise RuntimeError(
-            "GOOGLE_ANALYTICS_CREDENTIALS_JSON is not set - paste the full service "
-            "account JSON key (Viewer access on the GA4 property) as this env var."
-        )
-
     from google.analytics.data_v1beta import BetaAnalyticsDataClient
-    from google.oauth2 import service_account
 
-    info = json.loads(creds_json)
-    credentials = service_account.Credentials.from_service_account_info(
-        info, scopes=["https://www.googleapis.com/auth/analytics.readonly"]
+    client_id = os.getenv("GA_OAUTH_CLIENT_ID")
+    client_secret = os.getenv("GA_OAUTH_CLIENT_SECRET")
+    refresh_token = os.getenv("GA_OAUTH_REFRESH_TOKEN")
+    if client_id and client_secret and refresh_token:
+        from google.oauth2.credentials import Credentials
+
+        credentials = Credentials(
+            token=None,
+            refresh_token=refresh_token,
+            client_id=client_id,
+            client_secret=client_secret,
+            token_uri="https://oauth2.googleapis.com/token",
+            scopes=["https://www.googleapis.com/auth/analytics.readonly"],
+        )
+        _client = BetaAnalyticsDataClient(credentials=credentials)
+        return _client
+
+    creds_json = os.getenv("GOOGLE_ANALYTICS_CREDENTIALS_JSON")
+    if creds_json:
+        from google.oauth2 import service_account
+
+        info = json.loads(creds_json)
+        credentials = service_account.Credentials.from_service_account_info(
+            info, scopes=["https://www.googleapis.com/auth/analytics.readonly"]
+        )
+        _client = BetaAnalyticsDataClient(credentials=credentials)
+        return _client
+
+    raise RuntimeError(
+        "No GA credentials configured - set GA_OAUTH_CLIENT_ID/GA_OAUTH_CLIENT_SECRET/"
+        "GA_OAUTH_REFRESH_TOKEN, or GOOGLE_ANALYTICS_CREDENTIALS_JSON."
     )
-    _client = BetaAnalyticsDataClient(credentials=credentials)
-    return _client
 
 
 def get_ga_summary(days: int = 30) -> Dict[str, Any]:
