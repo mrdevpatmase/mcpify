@@ -241,15 +241,57 @@ async def get_metrics(_admin: Optional[str] = Depends(verify_admin_key)):
     be handed to an unauthenticated caller sizing up the deployment.
     """
     proxies = await proxy_manager.list_proxies()
+
+    # total_users needs the DB, which not every deployment has configured
+    # (e.g. local dev without DATABASE_URL) - best-effort, same graceful
+    # pattern as redis_connected below, so /metrics itself never breaks
+    # over an optional field.
+    total_users = None
+    try:
+        from sqlalchemy import func, select
+
+        from app.db import get_session_factory
+        from app.models import User
+
+        session_factory = get_session_factory()
+        async with session_factory() as db:
+            result = await db.execute(select(func.count()).select_from(User))
+            total_users = result.scalar()
+    except Exception as e:
+        logger.debug("[Metrics] total_users unavailable: %s", e)
+
     return {
         "status": "healthy",
         "active_proxies": len(proxies),
+        "total_users": total_users,
         "redis_connected": proxy_manager.redis_url is not None,
         "admin_auth_enabled": bool(os.getenv("ADMIN_API_KEY")),
         "public_auth_enabled": bool(os.getenv("PUBLIC_API_KEY")),
         "encryption_enabled": bool(os.getenv("ENCRYPTION_KEY")),
         "scheduler_running": scheduler.running
     }
+
+
+@app.get("/admin/analytics", summary="Google Analytics Summary")
+@limiter.limit("20/minute")
+async def get_analytics_endpoint(
+    request: Request,
+    days: int = Query(30, ge=1, le=90),
+    _admin: Optional[str] = Depends(verify_admin_key),
+):
+    """GA4 traffic summary (active users, page views, sessions, top
+    pages) for the admin dashboard. 503 if GA isn't configured yet
+    (GA_PROPERTY_ID / GOOGLE_ANALYTICS_CREDENTIALS_JSON), not a crash -
+    the rest of the admin dashboard's data should still load."""
+    from app.analytics import get_ga_summary
+
+    try:
+        return await asyncio.to_thread(get_ga_summary, days)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.warning("[Analytics] GA4 report failed: %s", e)
+        raise HTTPException(status_code=502, detail=f"Failed to fetch GA4 data: {e}")
 
 
 def render_web_page(page: str = "index.html") -> HTMLResponse:
@@ -287,6 +329,15 @@ async def login_page():
 @app.get("/signup", summary="Signup Page", response_class=HTMLResponse, include_in_schema=False)
 async def signup_page():
     return render_web_page("signup.html")
+
+
+@app.get("/admin", summary="Admin Dashboard Page", response_class=HTMLResponse, include_in_schema=False)
+async def admin_page():
+    """The page itself carries no data - it prompts for the admin key
+    client-side and sends it as X-API-Key on its own fetch calls to
+    /metrics, /admin/audit-log, /admin/analytics, same verify_admin_key
+    gate those already had."""
+    return render_web_page("admin.html")
 
 
 @app.get("/api", summary="Root Discovery Index")
@@ -835,7 +886,9 @@ async def serve_frontend_catch_all(full_path: str):
         clean_path.startswith("proxy") or
         clean_path.startswith("docs") or
         clean_path.startswith("openapi.json") or
-        clean_path.startswith("redoc")
+        clean_path.startswith("redoc") or
+        clean_path.startswith("admin") or
+        clean_path.startswith("auth")
     ):
         raise HTTPException(status_code=404, detail="Endpoint not found.")
 

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — MCPify</title>
+  <meta name="description" content="MCPify admin dashboard: users, proxies, audit log, and Google Analytics.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Red+Hat+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="/navbar.css?v=2">
+
+  <style>
+    :root {
+      --bg-canvas: #FFFFFF;
+      --brand-green: #1B4D3E;
+      --brand-green-hover: #13392E;
+      --font-title: 'Red Hat Display', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-desc: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+      --text-main: #111827;
+      --text-muted: #4B5563;
+      --text-dim: #9CA3AF;
+      --border-subtle: #E5E7EB;
+      --radius-35: 35px;
+      --radius-md: 14px;
+      --radius-full: 9999px;
+      --status-red: #DC2626;
+      --status-green: #166534;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      font-family: var(--font-desc);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    h1, h2, h3 {
+      font-family: var(--font-title);
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 60px;
+    }
+
+    .page-title {
+      font-size: 1.9rem;
+      font-weight: 800;
+      letter-spacing: -0.6px;
+      margin: 34px 0 24px;
+    }
+
+    /* Admin key gate */
+    .key-gate {
+      max-width: 440px;
+      margin: 60px auto;
+      background: linear-gradient(140deg, #FFFFFF 0%, #F4FAF7 45%, #EEF4F8 100%);
+      border: 1.5px solid rgba(27, 77, 62, 0.16);
+      border-radius: var(--radius-35);
+      padding: 40px 32px;
+      text-align: center;
+    }
+
+    .key-gate h2 {
+      font-size: 1.3rem;
+      margin-bottom: 8px;
+    }
+
+    .key-gate p {
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      margin-bottom: 20px;
+    }
+
+    .key-gate input {
+      width: 100%;
+      border: 1.5px solid rgba(27, 77, 62, 0.20);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+      outline: none;
+    }
+
+    .key-gate input:focus {
+      border-color: var(--brand-green);
+    }
+
+    .key-gate button {
+      width: 100%;
+      background: var(--brand-green);
+      color: #FFFFFF;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .key-gate button:hover {
+      background: var(--brand-green-hover);
+    }
+
+    .key-error {
+      display: none;
+      color: var(--status-red);
+      font-size: 0.82rem;
+      margin-top: 10px;
+    }
+
+    /* Dashboard */
+    #dashboard {
+      display: none;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin: 32px 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    @media (max-width: 800px) {
+      .stat-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .stat-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .stat-value {
+      font-size: 1.7rem;
+      font-weight: 800;
+      color: var(--brand-green);
+    }
+
+    .stat-label {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .panel {
+      background: #FFFFFF;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin-top: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    th {
+      background: #F9FAFB;
+      color: var(--text-dim);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    td {
+      color: var(--text-main);
+    }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+    }
+
+    .empty-note {
+      padding: 20px;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    .ga-not-configured {
+      background: #FFFBEB;
+      border: 1px solid #FDE68A;
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      color: #92400E;
+      font-size: 0.85rem;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="navbar-container">
+    <!-- NAVBAR_COMPONENT -->
+  </div>
+
+  <div class="container">
+    <!-- Admin key gate -->
+    <div class="key-gate" id="keyGate">
+      <h2>Admin access</h2>
+      <p>Enter the admin key to view the dashboard.</p>
+      <input type="password" id="adminKeyInput" placeholder="Admin API key" autocomplete="off" />
+      <button id="unlockBtn">Unlock</button>
+      <div class="key-error" id="keyError">Invalid admin key.</div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard">
+      <h1 class="page-title">Admin Dashboard</h1>
+
+      <div class="section-title">MCPify</div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="statUsers">—</div>
+          <div class="stat-label">Total Users</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statProxies">—</div>
+          <div class="stat-label">Active Proxies</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statRedis">—</div>
+          <div class="stat-label">Redis Connected</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statScheduler">—</div>
+          <div class="stat-label">Scheduler</div>
+        </div>
+      </div>
+
+      <div class="section-title">Google Analytics (last 30 days)</div>
+      <div id="gaStats">
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="statGaUsers">—</div>
+            <div class="stat-label">Active Users</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statGaViews">—</div>
+            <div class="stat-label">Page Views</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statGaSessions">—</div>
+            <div class="stat-label">Sessions</div>
+          </div>
+        </div>
+        <div class="panel" id="gaPagesPanel" style="display:none;">
+          <table>
+            <thead>
+              <tr><th>Page</th><th>Views</th></tr>
+            </thead>
+            <tbody id="gaPagesBody"></tbody>
+          </table>
+        </div>
+        <div class="ga-not-configured" id="gaNotConfigured" style="display:none;"></div>
+      </div>
+
+      <div class="section-title">Recent Activity</div>
+      <div class="panel">
+        <table>
+          <thead>
+            <tr><th>Time</th><th>Proxy</th><th>Tool</th><th>Status</th></tr>
+          </thead>
+          <tbody id="auditBody"></tbody>
+        </table>
+        <div class="empty-note" id="auditEmpty" style="display:none;">No activity yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var adminKey = null;
+    try { adminKey = sessionStorage.getItem('mcpify_admin_key'); } catch (e) {}
+
+    function authHeaders() {
+      return { 'X-API-Key': adminKey };
+    }
+
+    async function loadDashboard() {
+      document.getElementById('keyGate').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+
+      try {
+        var metricsRes = await fetch('/metrics', { headers: authHeaders() });
+        if (!metricsRes.ok) throw new Error('unauthorized');
+        var metrics = await metricsRes.json();
+        document.getElementById('statUsers').textContent = metrics.total_users ?? '—';
+        document.getElementById('statProxies').textContent = metrics.active_proxies ?? '—';
+        document.getElementById('statRedis').textContent = metrics.redis_connected ? 'Yes' : 'No';
+        document.getElementById('statScheduler').textContent = metrics.scheduler_running ? 'Running' : 'Stopped';
+      } catch (e) {
+        showKeyError();
+        return;
+      }
+
+      try {
+        var auditRes = await fetch('/admin/audit-log?limit=20', { headers: authHeaders() });
+        var audit = await auditRes.json();
+        var entries = audit.entries || [];
+        var tbody = document.getElementById('auditBody');
+        tbody.innerHTML = '';
+        if (entries.length === 0) {
+          document.getElementById('auditEmpty').style.display = 'block';
+        } else {
+          entries.forEach(function (entry) {
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+              '<td class="mono">' + (entry.timestamp || '') + '</td>' +
+              '<td class="mono">' + (entry.proxy_id || '') + '</td>' +
+              '<td>' + (entry.tool || '') + '</td>' +
+              '<td>' + (entry.status_code || '') + '</td>';
+            tbody.appendChild(tr);
+          });
+        }
+      } catch (e) { /* non-fatal - key already verified via /metrics */ }
+
+      try {
+        var gaRes = await fetch('/admin/analytics?days=30', { headers: authHeaders() });
+        if (gaRes.status === 503) {
+          document.getElementById('gaNotConfigured').style.display = 'block';
+          document.getElementById('gaNotConfigured').textContent =
+            'Google Analytics is not configured yet. Set GA_PROPERTY_ID and GOOGLE_ANALYTICS_CREDENTIALS_JSON.';
+          document.querySelector('#gaStats .stat-grid').style.display = 'none';
+        } else if (gaRes.ok) {
+          var ga = await gaRes.json();
+          document.getElementById('statGaUsers').textContent = ga.active_users;
+          document.getElementById('statGaViews').textContent = ga.page_views;
+          document.getElementById('statGaSessions').textContent = ga.sessions;
+          if (ga.top_pages && ga.top_pages.length > 0) {
+            var pagesBody = document.getElementById('gaPagesBody');
+            pagesBody.innerHTML = '';
+            ga.top_pages.forEach(function (p) {
+              var tr = document.createElement('tr');
+              tr.innerHTML = '<td class="mono">' + p.page + '</td><td>' + p.views + '</td>';
+              pagesBody.appendChild(tr);
+            });
+            document.getElementById('gaPagesPanel').style.display = 'block';
+          }
+        }
+      } catch (e) { /* non-fatal */ }
+    }
+
+    function showKeyError() {
+      try { sessionStorage.removeItem('mcpify_admin_key'); } catch (e) {}
+      adminKey = null;
+      document.getElementById('keyGate').style.display = 'block';
+      document.getElementById('dashboard').style.display = 'none';
+      document.getElementById('keyError').style.display = 'block';
+    }
+
+    document.getElementById('unlockBtn').addEventListener('click', function () {
+      var val = document.getElementById('adminKeyInput').value.trim();
+      if (!val) return;
+      adminKey = val;
+      try { sessionStorage.setItem('mcpify_admin_key', val); } catch (e) {}
+      document.getElementById('keyError').style.display = 'none';
+      loadDashboard();
+    });
+
+    document.getElementById('adminKeyInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') document.getElementById('unlockBtn').click();
+    });
+
+    if (adminKey) {
+      loadDashboard();
+    }
+  </script>
+
+</body>
+
+</html>
