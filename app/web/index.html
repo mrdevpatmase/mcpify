@@ -4,6 +4,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Auth gate: this landing page requires a logged-in session. Runs as
+       early as possible (synchronous localStorage read, before any other
+       script or the rest of <head> loads) so a logged-out visitor is
+       redirected to /login before the page paints, instead of seeing a
+       flash of the generator UI first. -->
+  <script>
+    (function () {
+      var token = null;
+      try { token = localStorage.getItem('mcpify_token'); } catch (e) {}
+      if (!token) {
+        window.location.replace('/login');
+        return;
+      }
+      fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(function (r) { if (!r.ok) throw new Error('invalid'); })
+        .catch(function () {
+          try { localStorage.removeItem('mcpify_token'); } catch (e) {}
+          window.location.replace('/login');
+        });
+    })();
+  </script>
+
   <title>MCPify — Model Context Protocol Bridge | By Aikart.co</title>
   <meta name="description"
     content="Generate ready-to-use Model Context Protocol (MCP) configs for any AI agent or REST API. Built by Aikart (aikart.co).">
