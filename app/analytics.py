@@ -2,14 +2,19 @@ import json
 import os
 from typing import Any, Dict
 
-_client = None
-
 
 def _get_client():
     """
-    Lazy singleton, same pattern as app/db.py's engine - only actually
-    builds credentials/client on first real use, so importing this module
-    (and running the test suite) never needs GA configured.
+    Builds credentials/client fresh on every call - NOT cached as a
+    module-level singleton, deliberately: a client built from a
+    wrong-but-structurally-complete credential (e.g. a stale/revoked
+    refresh token) would otherwise get cached on the first failing call
+    and keep failing identically for the rest of the process's life,
+    surviving even after the env var is fixed, until a restart/redeploy.
+    Rebuilding here is cheap - it only wraps credentials, no network
+    call happens until run_report() actually executes - and this is a
+    low-traffic, rate-limited admin-only endpoint, so there's no real
+    cost to paying it on every call.
 
     Two auth paths, tried in this order:
     1. OAuth refresh token (GA_OAUTH_CLIENT_ID/SECRET/REFRESH_TOKEN) - the
@@ -24,10 +29,6 @@ def _get_client():
        an alternative for any deployment where service account keys
        aren't blocked by org policy; simpler if it's available.
     """
-    global _client
-    if _client is not None:
-        return _client
-
     from google.analytics.data_v1beta import BetaAnalyticsDataClient
 
     client_id = os.getenv("GA_OAUTH_CLIENT_ID")
@@ -44,8 +45,7 @@ def _get_client():
             token_uri="https://oauth2.googleapis.com/token",
             scopes=["https://www.googleapis.com/auth/analytics.readonly"],
         )
-        _client = BetaAnalyticsDataClient(credentials=credentials)
-        return _client
+        return BetaAnalyticsDataClient(credentials=credentials)
 
     creds_json = os.getenv("GOOGLE_ANALYTICS_CREDENTIALS_JSON")
     if creds_json:
@@ -55,8 +55,7 @@ def _get_client():
         credentials = service_account.Credentials.from_service_account_info(
             info, scopes=["https://www.googleapis.com/auth/analytics.readonly"]
         )
-        _client = BetaAnalyticsDataClient(credentials=credentials)
-        return _client
+        return BetaAnalyticsDataClient(credentials=credentials)
 
     raise RuntimeError(
         "No GA credentials configured - set GA_OAUTH_CLIENT_ID/GA_OAUTH_CLIENT_SECRET/"
