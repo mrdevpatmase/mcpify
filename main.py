@@ -252,10 +252,12 @@ async def get_metrics(_admin: Optional[str] = Depends(verify_admin_key)):
     }
 
 
-def render_web_page() -> HTMLResponse:
-    """Renders the web frontend, dynamically including the navbar component if present."""
+def render_web_page(page: str = "index.html") -> HTMLResponse:
+    """Renders a page from app/web/, dynamically including the navbar
+    component if present. Shared by /, /login, /signup, and the static
+    frontend catch-all."""
     web_dir = os.path.join(os.path.dirname(__file__), "app", "web")
-    html_path = os.path.join(web_dir, "index.html")
+    html_path = os.path.join(web_dir, page)
     if not os.path.exists(html_path):
         return HTMLResponse("<h1>MCPify API Running</h1>")
 
@@ -275,6 +277,16 @@ def render_web_page() -> HTMLResponse:
 async def root():
     """Serves the MCPify Web UI frontend."""
     return render_web_page()
+
+
+@app.get("/login", summary="Login Page", response_class=HTMLResponse, include_in_schema=False)
+async def login_page():
+    return render_web_page("login.html")
+
+
+@app.get("/signup", summary="Signup Page", response_class=HTMLResponse, include_in_schema=False)
+async def signup_page():
+    return render_web_page("signup.html")
 
 
 @app.get("/api", summary="Root Discovery Index")

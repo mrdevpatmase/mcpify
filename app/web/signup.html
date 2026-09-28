@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign up — MCPify</title>
+  <meta name="description" content="Create your MCPify account.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Red+Hat+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="/navbar.css?v=2">
+
+  <style>
+    :root {
+      --bg-canvas: #FFFFFF;
+      --brand-green: #1B4D3E;
+      --brand-green-hover: #13392E;
+      --font-title: 'Red Hat Display', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-desc: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+      --text-main: #111827;
+      --text-muted: #4B5563;
+      --border-subtle: #E5E7EB;
+      --radius-35: 35px;
+      --radius-md: 14px;
+      --radius-full: 9999px;
+      --status-red: #DC2626;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      font-family: var(--font-desc);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    h1 {
+      font-family: var(--font-title);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 420px;
+      background: linear-gradient(140deg, #FFFFFF 0%, #F4FAF7 45%, #EEF4F8 100%);
+      border: 1.5px solid rgba(27, 77, 62, 0.16);
+      outline: 1px solid rgba(255, 255, 255, 0.9);
+      border-radius: var(--radius-35);
+      padding: 44px 36px;
+      box-shadow:
+        0 20px 48px -12px rgba(27, 77, 62, 0.08),
+        0 6px 18px -4px rgba(15, 23, 42, 0.03);
+    }
+
+    .auth-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.6px;
+      margin-bottom: 6px;
+      color: var(--text-main);
+    }
+
+    .auth-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #14352B;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .form-hint {
+      font-size: 0.76rem;
+      color: #8C9D95;
+      margin-top: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1.5px solid rgba(27, 77, 62, 0.20);
+      border-radius: var(--radius-md);
+      padding: 13px 16px;
+      font-family: var(--font-desc);
+      font-size: 0.92rem;
+      color: var(--text-main);
+      outline: none;
+      transition: all 0.18s ease;
+    }
+
+    .form-input:focus {
+      background: #FFFFFF;
+      border-color: var(--brand-green);
+      box-shadow: 0 0 0 3px rgba(27, 77, 62, 0.14);
+    }
+
+    .btn-submit {
+      width: 100%;
+      background: var(--brand-green);
+      color: #FFFFFF;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 14px 20px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all 0.18s ease;
+    }
+
+    .btn-submit:hover {
+      background: var(--brand-green-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .auth-switch {
+      text-align: center;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-top: 22px;
+    }
+
+    .auth-switch a {
+      color: var(--brand-green);
+      font-weight: 700;
+    }
+
+    .auth-error {
+      display: none;
+      background: #FEF2F2;
+      border: 1px solid #FEE2E2;
+      color: var(--status-red);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="navbar-container">
+    <!-- NAVBAR_COMPONENT -->
+  </div>
+
+  <main>
+    <div class="auth-card">
+      <h1 class="auth-title">Create your account</h1>
+      <p class="auth-subtitle">Sign up to create and manage your own MCPify proxies.</p>
+
+      <div class="auth-error" id="authError"></div>
+
+      <form id="signupForm">
+        <div class="form-group">
+          <label class="form-label" for="email">Email</label>
+          <input type="email" id="email" class="form-input" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input type="password" id="password" class="form-input" required autocomplete="new-password"
+            minlength="8" />
+          <p class="form-hint">At least 8 characters.</p>
+        </div>
+        <button type="submit" class="btn-submit" id="submitBtn">Sign up</button>
+      </form>
+
+      <p class="auth-switch">Already have an account? <a href="/login">Log in</a></p>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('signupForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var errorEl = document.getElementById('authError');
+      var submitBtn = document.getElementById('submitBtn');
+      errorEl.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creating account...';
+
+      try {
+        var res = await fetch('/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('email').value,
+            password: document.getElementById('password').value
+          })
+        });
+        var data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || 'Signup failed.');
+        }
+        localStorage.setItem('mcpify_token', data.access_token);
+        window.location.href = '/';
+      } catch (err) {
+        errorEl.textContent = err.message || 'Something went wrong.';
+        errorEl.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign up';
+      }
+    });
+  </script>
+
+</body>
+
+</html>

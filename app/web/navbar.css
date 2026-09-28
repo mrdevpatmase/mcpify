@@ -186,6 +186,34 @@
   transform: translateY(-1px);
 }
 
+.nav-auth-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.nav-signup-btn {
+  background: var(--brand-green, #1B4D3E);
+  color: #FFFFFF;
+  padding: 7px 16px;
+  border-radius: var(--radius-full, 9999px);
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: all var(--transition-fast, 0.18s ease);
+}
+
+.nav-signup-btn:hover {
+  background: var(--brand-green-hover, #13392E);
+  color: #FFFFFF;
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.nav-user-email {
+  color: var(--text-main, #111827);
+  font-weight: 600;
+}
+
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .navbar-outer {

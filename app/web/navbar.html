@@ -6,13 +6,6 @@
         <a href="/" class="brand-identity">
           <span class="brand-name">MCPify</span>
         </a>
-        <div class="meta-style-by">
-          <span class="by-text">from</span>
-          <a href="https://aikart.co" target="_blank" rel="noopener noreferrer" class="aikart-logo-link"
-            title="aiKart - Marketplace for AI Agents">
-            <img src="https://aikart.co/logo/aikart-logo-full.png" alt="aiKart" class="aikart-logo-img" />
-          </a>
-        </div>
       </div>
 
       <div class="nav-actions">
@@ -22,6 +15,17 @@
         </div>
         <a href="/health" target="_blank" class="nav-item-link">Health</a>
         <a href="/docs" target="_blank" class="nav-item-link">API docs</a>
+
+        <span id="navAuthLoggedOut" class="nav-auth-group">
+          <a href="/login" class="nav-item-link">Log in</a>
+          <a href="/signup" class="nav-signup-btn">Sign up</a>
+        </span>
+
+        <span id="navAuthLoggedIn" class="nav-auth-group" style="display:none;">
+          <span id="navUserEmail" class="nav-item-link nav-user-email"></span>
+          <a href="#" id="navLogoutBtn" class="nav-item-link">Log out</a>
+        </span>
+
         <a href="https://aikart.co" target="_blank" rel="noopener noreferrer" class="nav-aikart-link">
           <span>aikart.co</span>
           <span>↗</span>
@@ -30,3 +34,46 @@
     </div>
   </header>
 </div>
+
+<script>
+  (function () {
+    var token = null;
+    try { token = localStorage.getItem('mcpify_token'); } catch (e) {}
+
+    var loggedOutEl = document.getElementById('navAuthLoggedOut');
+    var loggedInEl = document.getElementById('navAuthLoggedIn');
+    var emailEl = document.getElementById('navUserEmail');
+    var logoutBtn = document.getElementById('navLogoutBtn');
+
+    function showLoggedOut() {
+      if (loggedOutEl) loggedOutEl.style.display = '';
+      if (loggedInEl) loggedInEl.style.display = 'none';
+    }
+
+    function showLoggedIn(email) {
+      if (loggedOutEl) loggedOutEl.style.display = 'none';
+      if (loggedInEl) loggedInEl.style.display = '';
+      if (emailEl) emailEl.textContent = email;
+    }
+
+    if (token) {
+      fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(function (r) { if (!r.ok) throw new Error('invalid'); return r.json(); })
+        .then(function (data) { showLoggedIn(data.email); })
+        .catch(function () {
+          try { localStorage.removeItem('mcpify_token'); } catch (e) {}
+          showLoggedOut();
+        });
+    } else {
+      showLoggedOut();
+    }
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        try { localStorage.removeItem('mcpify_token'); } catch (err) {}
+        window.location.href = '/';
+      });
+    }
+  })();
+</script>
