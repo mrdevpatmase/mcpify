@@ -200,17 +200,30 @@ class ProxyMCPManager:
     async def create_proxy(
         self, target_url: str, has_mcp: bool = False, api_key: Optional[str] = None,
         request: Optional[Any] = None, openapi_operations: Optional[List[Dict[str, Any]]] = None,
-        oauth_config: Optional[Dict[str, Any]] = None, graphql_config: Optional[Dict[str, Any]] = None
+        oauth_config: Optional[Dict[str, Any]] = None, graphql_config: Optional[Dict[str, Any]] = None,
+        owner_user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Create a new proxy session or return existing active proxy."""
+        """Create a new proxy session or return existing active proxy.
+
+        The dedup index (below) is scoped by owner_user_id, not just
+        target_url: two different logged-in users proxying the same
+        public target_url must each get their OWN proxy record, not
+        silently share one. Sharing would leak more than just the
+        target - the SAME proxy_id/proxy_url would hand user B a working
+        connection using user A's stored api_key/OAuth token, since the
+        proxy forwards calls using whatever credential is on the record,
+        not the caller's. `owner_user_id=None` (unauthenticated/legacy
+        proxies from before accounts existed) is its own scope, "anon".
+        """
         target_url = normalize_url(target_url)
         current_base_url = self.get_base_app_url(request)
+        owner_scope = owner_user_id or "anon"
 
         redis = self._get_redis()
         now_str = datetime.now(timezone.utc).isoformat()
 
         if redis is not None:
-            existing_id = await redis.get(f"{REDIS_INDEX_PREFIX}{target_url}")
+            existing_id = await redis.get(f"{REDIS_INDEX_PREFIX}{owner_scope}:{target_url}")
             if existing_id:
                 existing = await self._redis_get_proxy(redis, existing_id)
                 if existing:
@@ -251,7 +264,7 @@ class ProxyMCPManager:
                     # corruption, just a live proxy silently becoming
                     # undiscoverable by target_url until its record's own
                     # TTL also lapses.
-                    await redis.expire(f"{REDIS_INDEX_PREFIX}{target_url}", PROXY_TTL_SECONDS)
+                    await redis.expire(f"{REDIS_INDEX_PREFIX}{owner_scope}:{target_url}", PROXY_TTL_SECONDS)
                     return existing
 
             proxy_id = str(uuid.uuid4())[:8]
@@ -260,6 +273,7 @@ class ProxyMCPManager:
                 "proxy_id": proxy_id,
                 "proxy_url": proxy_url,
                 "target_url": target_url,
+                "owner_user_id": owner_user_id,
                 "has_mcp": has_mcp,
                 "api_key": api_key,
                 "openapi_operations": openapi_operations,
@@ -279,9 +293,11 @@ class ProxyMCPManager:
             # dedup lookup). NX makes only one of them actually win the
             # index slot; the loser reuses the winner's record instead of
             # leaving its own orphaned.
-            claimed = await redis.set(f"{REDIS_INDEX_PREFIX}{target_url}", proxy_id, nx=True, ex=PROXY_TTL_SECONDS)
+            claimed = await redis.set(
+                f"{REDIS_INDEX_PREFIX}{owner_scope}:{target_url}", proxy_id, nx=True, ex=PROXY_TTL_SECONDS
+            )
             if not claimed:
-                winner_id = await redis.get(f"{REDIS_INDEX_PREFIX}{target_url}")
+                winner_id = await redis.get(f"{REDIS_INDEX_PREFIX}{owner_scope}:{target_url}")
                 winner = await self._redis_get_proxy(redis, winner_id) if winner_id else None
                 if winner:
                     winner["last_used"] = now_str
@@ -294,7 +310,7 @@ class ProxyMCPManager:
                     winner["graphql_config"] = graphql_config
                     winner["proxy_url"] = f"{current_base_url}/proxy/{winner['proxy_id']}/mcp"
                     await self._redis_save_proxy(redis, winner)
-                    await redis.expire(f"{REDIS_INDEX_PREFIX}{target_url}", PROXY_TTL_SECONDS)
+                    await redis.expire(f"{REDIS_INDEX_PREFIX}{owner_scope}:{target_url}", PROXY_TTL_SECONDS)
                     return winner
                 # Winner's own record vanished somehow - fall through and
                 # save ours anyway rather than returning nothing usable.
@@ -304,7 +320,7 @@ class ProxyMCPManager:
 
         # In-memory fallback
         for proxy_id, proxy in self.proxies.items():
-            if proxy["target_url"] == target_url:
+            if proxy["target_url"] == target_url and (proxy.get("owner_user_id") or "anon") == owner_scope:
                 proxy["last_used"] = now_str
                 if api_key:
                     proxy["api_key"] = api_key
@@ -322,6 +338,7 @@ class ProxyMCPManager:
             "proxy_id": proxy_id,
             "proxy_url": proxy_url,
             "target_url": target_url,
+            "owner_user_id": owner_user_id,
             "has_mcp": has_mcp,
             "api_key": api_key,
             "openapi_operations": openapi_operations,
@@ -369,8 +386,16 @@ class ProxyMCPManager:
             proxy["last_used"] = now_str
         return proxy
 
-    async def list_proxies(self) -> List[Dict[str, Any]]:
-        """Return list of all active proxies, with credentials masked."""
+    async def list_proxies(self, owner_user_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Return list of active proxies, with credentials masked.
+
+        owner_user_id=None (the default, used by the admin /proxy/list
+        endpoint) returns every proxy regardless of owner. Passing a
+        user id (the /proxy/mine endpoint) filters to that user's own
+        proxies only - callers must not skip this filter for a
+        non-admin caller, or any logged-in user could enumerate every
+        target_url anyone has ever proxied.
+        """
         redis = self._get_redis()
         proxies: List[Dict[str, Any]] = []
 
@@ -381,6 +406,9 @@ class ProxyMCPManager:
                 proxies = [json.loads(v) for v in raw_values if v]
         else:
             proxies = [p for p in self.proxies.values() if not _is_proxy_expired(p)]
+
+        if owner_user_id is not None:
+            proxies = [p for p in proxies if p.get("owner_user_id") == owner_user_id]
 
         result = []
         for proxy in proxies:
@@ -404,8 +432,9 @@ class ProxyMCPManager:
             proxy = await self._redis_get_proxy(redis, proxy_id)
             if not proxy:
                 return False
+            owner_scope = proxy.get("owner_user_id") or "anon"
             await redis.delete(f"{REDIS_KEY_PREFIX}{proxy_id}")
-            await redis.delete(f"{REDIS_INDEX_PREFIX}{proxy['target_url']}")
+            await redis.delete(f"{REDIS_INDEX_PREFIX}{owner_scope}:{proxy['target_url']}")
             return True
 
         return self.proxies.pop(proxy_id, None) is not None

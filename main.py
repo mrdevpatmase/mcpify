@@ -26,13 +26,17 @@ from app.proxy import proxy_manager
 from app.generator import generate_proxy_config
 from app.security import (
     is_public_url, resolve_canonical_base, normalize_url,
-    verify_admin_key, verify_public_key, log_production_readiness_warnings,
+    verify_admin_key, log_production_readiness_warnings,
 )
 from app.analyzer import verify_mcp_handshake
 from app.openapi_tools import discover_openapi_spec, parse_operations
 from app.graphql_tools import discover_graphql_schema
 from app.oauth import fetch_client_credentials_token, exchange_authorization_code
 from app.rate_limit import limiter
+from app.auth import get_current_user
+from app.auth_routes import router as auth_router
+from app.db import init_db
+from app.models import User
 
 # Load environment variables
 load_dotenv()
@@ -106,6 +110,17 @@ async def keep_alive_worker():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log_production_readiness_warnings()
+
+    # Startup: create the users table if it doesn't exist yet. Best-effort
+    # (logged, not raised) so a transient DB outage or a deployment that
+    # hasn't set DATABASE_URL yet doesn't take down every OTHER endpoint -
+    # only /auth/* and /proxy/create actually need the DB, and they'll
+    # fail their own request cleanly if it's unreachable.
+    try:
+        await init_db()
+        logger.info("[MCPify] Database tables ready.")
+    except Exception as e:
+        logger.warning("[MCPify] init_db skipped/failed (signup/login won't work until this is fixed): %s", e)
 
     # Startup: launch keep-alive background worker
     worker_task = asyncio.create_task(keep_alive_worker())
@@ -305,7 +320,7 @@ async def api_info():
 async def create_proxy_endpoint(
     request: Request,
     payload: CreateProxyRequest,
-    _public: Optional[str] = Depends(verify_public_key),
+    current_user: User = Depends(get_current_user),
 ):
     """Creates a proxy MCP endpoint for a target URL."""
     target_url = payload.url.strip()
@@ -439,7 +454,8 @@ async def create_proxy_endpoint(
 
     proxy_data = await proxy_manager.create_proxy(
         target_url=normalized_url, has_mcp=has_mcp, api_key=payload.api_key, request=request,
-        openapi_operations=openapi_operations, oauth_config=oauth_config, graphql_config=graphql_config
+        openapi_operations=openapi_operations, oauth_config=oauth_config, graphql_config=graphql_config,
+        owner_user_id=current_user.id,
     )
     proxy_id = proxy_data["proxy_id"]
     proxy_url = proxy_data["proxy_url"]
@@ -548,6 +564,37 @@ async def list_proxies_endpoint(request: Request, _admin: Optional[str] = Depend
         "proxies": proxies,
         "total": len(proxies)
     }
+
+
+@app.get("/proxy/mine", summary="List My Proxies")
+@limiter.limit("20/minute")
+async def list_my_proxies_endpoint(request: Request, current_user: User = Depends(get_current_user)):
+    """List only the calling user's own proxies - unlike /proxy/list
+    (admin-only, sees everyone's), this is scoped by owner_user_id so any
+    logged-in user can see their own without needing ADMIN_API_KEY."""
+    proxies = await proxy_manager.list_proxies(owner_user_id=current_user.id)
+    return {
+        "proxies": proxies,
+        "total": len(proxies)
+    }
+
+
+@app.delete("/proxy/{proxy_id}", summary="Delete My Proxy")
+@limiter.limit("20/minute")
+async def delete_my_proxy_endpoint(
+    request: Request,
+    proxy_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Lets a user delete their OWN proxy without needing ADMIN_API_KEY.
+    Distinct from DELETE /admin/proxy/{id} (admin override, any proxy) -
+    ownership is checked here so user A can't delete user B's proxy just
+    by guessing/enumerating an 8-char proxy_id."""
+    proxy = await proxy_manager.get_proxy(proxy_id)
+    if not proxy or proxy.get("owner_user_id") != current_user.id:
+        raise HTTPException(status_code=404, detail=f"Proxy ID '{proxy_id}' not found.")
+    await proxy_manager.delete_proxy(proxy_id)
+    return {"deleted": True, "proxy_id": proxy_id}
 
 
 @app.get("/admin/audit-log", summary="Recent Proxy Call Audit Log")
@@ -744,6 +791,7 @@ async def proxy_mcp_msg_4(proxy_id: str, payload: Dict[str, Any] = Body(...), se
 
 # 3. Include REST routes (/analyze, /generate, /guide)
 app.include_router(mcp_router)
+app.include_router(auth_router)
 
 # 4. Expose all FastAPI /api/ & REST endpoints as MCP tools via FastApiMCP at /mcp-server
 fastapi_mcp = FastApiMCP(app, name="DataHub Talk to Data")
