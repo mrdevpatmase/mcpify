@@ -1481,9 +1481,12 @@
           <form id="mcpForm" onsubmit="handleGenerate(event)">
             <label class="input-label" for="agentUrl">Agent or API URL</label>
             <div class="input-action-row">
-              <input type="text" id="agentUrl" class="agent-input"
-                placeholder="Paste your deployed agent URL here... (e.g. https://my-agent.onrender.com)" required
-                autocomplete="off" />
+              <div style="position: relative; flex: 1; display: flex; align-items: center;">
+                <input type="text" id="agentUrl" class="agent-input"
+                  placeholder="Paste your deployed agent URL here... (e.g. https://my-agent.onrender.com)" required
+                  autocomplete="off" style="padding-right: 75px;" />
+                <button type="button" onclick="pasteClipboardUrl()" style="position: absolute; right: 8px; background: rgba(27,77,62,0.08); border: 1px solid rgba(27,77,62,0.18); color: #1B4D3E; font-size: 0.74rem; font-weight: 600; padding: 5px 10px; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;">Paste</button>
+              </div>
               <button type="submit" id="submitBtn" class="btn-generate">
                 <span>Generate config</span>
               </button>
@@ -1984,6 +1987,17 @@
       }
     }
     checkApiHealth();
+
+    async function pasteClipboardUrl() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          fillUrl(text.trim());
+        }
+      } catch (err) {
+        console.debug('Clipboard read permission denied or unavailable:', err);
+      }
+    }
 
     function fillUrl(url) {
       const inputEl = document.getElementById('agentUrl');
