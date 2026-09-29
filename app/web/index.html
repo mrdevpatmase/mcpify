@@ -1834,14 +1834,33 @@
           <div class="code-container">
             <div class="code-header">
               <span id="configLangLabel">JSON — Configuration Snippet</span>
-              <button id="copyConfigBtn" class="btn-copy" onclick="copyCurrentConfig(this)">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-                <span>Copy Config</span>
-              </button>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <button id="copyConfigBtn" class="btn-copy" onclick="copyCurrentConfig(this)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span>Copy Config</span>
+                </button>
+                <button id="downloadConfigBtn" class="btn-copy" onclick="downloadCurrentConfig(this)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  <span>Download JSON</span>
+                </button>
+                <button id="shareLinkBtn" class="btn-copy" onclick="shareGeneratorLink(this)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                  </svg>
+                  <span>Share Link</span>
+                </button>
+              </div>
             </div>
             <pre><code id="codeBlock">// Configuration will appear here...</code></pre>
           </div>
@@ -2178,22 +2197,74 @@
           btnEl.innerText = origText;
           btnEl.classList.remove('copied');
         }, 2000);
-      });
-    }
-
     function copyCurrentConfig(btnEl) {
       const text = document.getElementById('codeBlock').innerText;
       navigator.clipboard.writeText(text).then(() => {
         const span = btnEl.querySelector('span');
-        const origText = span.innerText;
-        span.innerText = '✓ Copied Config!';
+        const origText = span ? span.innerText : btnEl.innerText;
+        if (span) span.innerText = '✓ Copied Config!';
         btnEl.classList.add('copied');
         setTimeout(() => {
-          span.innerText = origText;
+          if (span) span.innerText = origText;
           btnEl.classList.remove('copied');
         }, 2000);
       });
     }
+
+    function downloadCurrentConfig(btnEl) {
+      const text = document.getElementById('codeBlock').innerText;
+      if (!text || text.startsWith('//')) return;
+
+      const filename = activeTab === 'vscode' ? 'mcp.json' : 'claude_desktop_config.json';
+      const blob = new Blob([text], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      const span = btnEl.querySelector('span');
+      const origText = span ? span.innerText : btnEl.innerText;
+      if (span) span.innerText = '✓ Downloaded!';
+      btnEl.classList.add('copied');
+      setTimeout(() => {
+        if (span) span.innerText = origText;
+        btnEl.classList.remove('copied');
+      }, 2000);
+    }
+
+    function shareGeneratorLink(btnEl) {
+      const inputEl = document.getElementById('agentUrl');
+      const targetUrl = inputEl ? inputEl.value.trim() : '';
+      if (!targetUrl) return;
+
+      const shareUrl = `${window.location.origin}/?url=${encodeURIComponent(targetUrl)}`;
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        const span = btnEl.querySelector('span');
+        const origText = span ? span.innerText : btnEl.innerText;
+        if (span) span.innerText = '✓ Link Copied!';
+        btnEl.classList.add('copied');
+        setTimeout(() => {
+          if (span) span.innerText = origText;
+          btnEl.classList.remove('copied');
+        }, 2000);
+      });
+    }
+
+    // Auto-populate & trigger URL generation from query string ?url=...
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const paramUrl = params.get('url');
+      if (paramUrl) {
+        fillUrl(paramUrl);
+        setTimeout(() => {
+          document.getElementById('mcpForm').requestSubmit();
+        }, 300);
+      }
+    });
 
     // Client-side fallback: load navbar.html dynamically if not pre-rendered server-side
     if (!document.querySelector('.navbar')) {
