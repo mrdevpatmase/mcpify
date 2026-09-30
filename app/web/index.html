@@ -1491,6 +1491,16 @@
                 <span>Generate config</span>
               </button>
             </div>
+
+            <button type="button" id="toggleApiKeyBtn" onclick="toggleApiKeyField()"
+              style="background:none;border:none;color:#4B685C;font-size:0.78rem;font-weight:600;cursor:pointer;padding:8px 2px 0;text-decoration:underline;">
+              + My API needs an auth token
+            </button>
+            <div id="apiKeyRow" style="display:none;margin-top:10px;">
+              <input type="password" id="agentApiKey" class="agent-input"
+                placeholder="Bearer token forwarded to the target's protected endpoints"
+                autocomplete="off" style="font-size:0.82rem;padding:12px 16px;" />
+            </div>
           </form>
 
           <!-- Quick Try chips -->
@@ -1759,6 +1769,18 @@
               <button class="btn-copy" onclick="copyText('mcpEndpointDisplay', this)">Copy</button>
             </div>
           </div>
+
+          <div class="meta-item" style="margin-top: 16px;">
+            <button type="button" class="btn-copy" id="testConnectionBtn" onclick="testConnection()"
+              style="padding: 8px 16px; font-size: 0.82rem;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>Test connection</span>
+            </button>
+            <div id="testConnectionResult" style="display:none; margin-top: 12px;"></div>
+          </div>
         </div>
 
         <!-- Tabs & Config Viewer (Radius 35px) -->
@@ -1999,6 +2021,57 @@
       }
     }
 
+    async function testConnection() {
+      const btn = document.getElementById('testConnectionBtn');
+      const resultEl = document.getElementById('testConnectionResult');
+      if (!currentData) return;
+
+      const mcpUrl = currentData.analysis.proxy_url || currentData.configs.remote_mcp_url;
+      btn.disabled = true;
+      const origHtml = btn.innerHTML;
+      btn.querySelector('span').innerText = 'Testing...';
+      resultEl.style.display = 'none';
+
+      try {
+        const res = await fetch(mcpUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message || 'Server returned an error.');
+        const tools = (data.result && data.result.tools) || [];
+        resultEl.style.display = 'block';
+        if (tools.length === 0) {
+          resultEl.innerHTML = '<div style="background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;padding:12px 16px;border-radius:12px;font-size:0.85rem;">Connected, but no tools were returned.</div>';
+        } else {
+          resultEl.innerHTML =
+            '<div style="background:#F0FDF4;border:1px solid #BBF7D0;color:#166534;padding:10px 16px;border-radius:12px;font-size:0.85rem;margin-bottom:8px;">&#10003; Connected — ' + tools.length + ' tool' + (tools.length === 1 ? '' : 's') + ' available</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+            tools.map(function (t) {
+              const desc = (t.description || '').replace(/"/g, '&quot;');
+              return '<span style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:999px;padding:4px 12px;font-size:0.78rem;font-family:\'JetBrains Mono\',monospace;color:#111827;" title="' + desc + '">' + t.name + '</span>';
+            }).join('') +
+            '</div>';
+        }
+      } catch (err) {
+        resultEl.style.display = 'block';
+        resultEl.innerHTML = '<div style="background:#FEF2F2;border:1px solid #FEE2E2;color:#B91C1C;padding:12px 16px;border-radius:12px;font-size:0.85rem;">Connection test failed: ' + (err.message || 'Unknown error') + '</div>';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }
+    }
+
+    function toggleApiKeyField() {
+      const row = document.getElementById('apiKeyRow');
+      const btn = document.getElementById('toggleApiKeyBtn');
+      const showing = row.style.display === 'block';
+      row.style.display = showing ? 'none' : 'block';
+      btn.textContent = showing ? '+ My API needs an auth token' : '− Hide auth token field';
+      if (!showing) document.getElementById('agentApiKey').focus();
+    }
+
     function fillUrl(url) {
       const inputEl = document.getElementById('agentUrl');
       inputEl.value = url;
@@ -2043,6 +2116,8 @@
         }
 
         const payload = { url: targetUrl };
+        const apiKeyVal = document.getElementById('agentApiKey').value.trim();
+        if (apiKeyVal) payload.api_key = apiKeyVal;
 
         const response = await fetch('/generate', {
           method: 'POST',
@@ -2091,13 +2166,25 @@
       const proxyBanner = document.getElementById('proxyBanner');
       const isProxy = analysis.has_mcp === false || Boolean(analysis.proxy_url || configs.proxy_url);
 
+      const testBtnWrap = document.getElementById('testConnectionBtn').parentElement;
       if (isProxy) {
         proxyBanner.style.display = 'flex';
         const pUrl = analysis.proxy_url || configs.proxy_url || configs.remote_mcp_url;
         document.getElementById('proxyUrlDisplay').innerText = pUrl;
+        testBtnWrap.style.display = '';
       } else {
         proxyBanner.style.display = 'none';
+        // Native MCP endpoints live on the target's own domain - testing
+        // them from browser JS would be a cross-origin fetch that only
+        // works if THAT server sets permissive CORS headers, which most
+        // MCP servers (built for desktop clients, not browsers) don't.
+        // A failed test there would misleadingly look like the server is
+        // broken when it's really just a browser restriction, so this is
+        // only offered for the proxy case, which is always same-origin
+        // (mcpify.aikart.co calling its own /proxy/{id}/mcp).
+        testBtnWrap.style.display = 'none';
       }
+      document.getElementById('testConnectionResult').style.display = 'none';
 
       document.getElementById('frameworkBadge').innerText = analysis.detected_framework || 'Custom / REST';
       document.getElementById('confidenceBadge').innerText = `${Math.round((analysis.confidence_score || 1) * 100)}% Confidence`;
