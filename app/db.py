@@ -119,3 +119,5 @@ async def init_db() -> None:
         await conn.run_sync(Base.metadata.create_all)
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(100)"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)"))
+        await conn.execute(text("ALTER TABLE ads ADD COLUMN IF NOT EXISTS media_data BYTEA"))
+        await conn.execute(text("ALTER TABLE ads ADD COLUMN IF NOT EXISTS media_content_type VARCHAR(100)"))

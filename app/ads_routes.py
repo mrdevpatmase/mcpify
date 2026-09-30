@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Tuple
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 
@@ -13,14 +13,25 @@ from app.security import is_public_url, verify_admin_key
 
 router = APIRouter(tags=["Ads"])
 
+# 15MB covers a 5-10s video at a reasonable bitrate comfortably and is
+# generous for a static image; there's no server-side duration check
+# (would need ffprobe/ffmpeg as a new system dependency) - "5-10
+# seconds" is enforced as a size cap + admin honor system, not a
+# measured video length.
+MAX_MEDIA_BYTES = 15 * 1024 * 1024
+ALLOWED_MEDIA_PREFIXES = ("image/", "video/")
 
-class CreateAdRequest(BaseModel):
-    title: str = Field(..., min_length=1, max_length=200)
-    link_url: str = Field(..., min_length=1, max_length=1000)
-    image_url: Optional[str] = Field(None, max_length=1000)
-    description: Optional[str] = Field(None, max_length=2000)
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
+
+async def _read_media(media: Optional[UploadFile]) -> Tuple[Optional[bytes], Optional[str]]:
+    if media is None or not media.filename:
+        return None, None
+    content_type = media.content_type or ""
+    if not content_type.startswith(ALLOWED_MEDIA_PREFIXES):
+        raise HTTPException(status_code=400, detail="Only image or video files are allowed.")
+    data = await media.read()
+    if len(data) > MAX_MEDIA_BYTES:
+        raise HTTPException(status_code=400, detail=f"File too large - max {MAX_MEDIA_BYTES // (1024 * 1024)}MB.")
+    return data, content_type
 
 
 class UpdateAdRequest(BaseModel):
@@ -37,7 +48,13 @@ def _serialize(ad: Ad) -> dict:
     return {
         "id": ad.id,
         "title": ad.title,
+        # image_url: legacy external-link path, kept for ads created
+        # before upload existed. media_url: the new upload path, served
+        # from this ad's own row via GET /ads/{id}/media - never the
+        # raw bytes themselves in this JSON.
         "image_url": ad.image_url,
+        "media_url": f"/ads/{ad.id}/media" if ad.media_data else None,
+        "media_content_type": ad.media_content_type,
         "link_url": ad.link_url,
         "description": ad.description,
         "active": ad.active,
@@ -57,7 +74,10 @@ def _serialize(ad: Ad) -> dict:
 @limiter.limit("20/minute")
 async def create_ad(
     request: Request,
-    payload: CreateAdRequest,
+    title: str = Form(..., min_length=1, max_length=200),
+    link_url: str = Form(..., min_length=1, max_length=1000),
+    description: Optional[str] = Form(None, max_length=2000),
+    media: Optional[UploadFile] = File(None, description="An image or a short (5-10s) video."),
     _admin: Optional[str] = Depends(verify_admin_key),
     db=Depends(get_db),
 ):
@@ -66,21 +86,34 @@ async def create_ad(
     # app applies (an admin-only field is still worth guarding: an admin
     # key leak or a copy-pasted malicious link shouldn't be able to point
     # this at an internal address app.web pages might render/fetch).
-    is_safe, reason = await is_public_url(payload.link_url)
+    is_safe, reason = await is_public_url(link_url)
     if not is_safe:
         raise HTTPException(status_code=400, detail=f"Refusing to save ad link: {reason}")
 
+    media_data, media_content_type = await _read_media(media)
+
     ad = Ad(
-        title=payload.title,
-        link_url=payload.link_url,
-        image_url=payload.image_url,
-        description=payload.description,
-        start_date=payload.start_date,
-        end_date=payload.end_date,
+        title=title,
+        link_url=link_url,
+        description=description,
+        media_data=media_data,
+        media_content_type=media_content_type,
     )
     db.add(ad)
     await db.commit()
     return _serialize(ad)
+
+
+@router.get("/ads/{ad_id}/media", summary="Get an Ad's Uploaded Image/Video")
+@limiter.limit("120/minute")
+async def get_ad_media(request: Request, ad_id: str):
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        result = await db.execute(select(Ad).where(Ad.id == ad_id))
+        ad = result.scalar_one_or_none()
+    if not ad or not ad.media_data:
+        raise HTTPException(status_code=404, detail="No media for this ad.")
+    return Response(content=ad.media_data, media_type=ad.media_content_type or "application/octet-stream")
 
 
 @router.get("/admin/ads", summary="List All Ads")

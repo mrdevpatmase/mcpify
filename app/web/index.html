@@ -1523,12 +1523,16 @@
 
       </section>
 
-      <!-- Sponsored Ad Slot (hidden until /ads/current returns one) -->
-      <section id="adSlot" style="display:none; margin-bottom: 40px;">
+      <!-- Sponsored Ad Slot (hidden until /ads/current returns one, or user closes it) -->
+      <section id="adSlot" style="display:none; margin-bottom: 40px; position:relative;">
+        <button type="button" id="adSlotCloseBtn" aria-label="Close ad"
+          style="position:absolute; top:10px; right:10px; z-index:2; width:26px; height:26px; border-radius:50%; border:1px solid var(--border-card); background:#FFFFFF; color:var(--text-muted); font-size:0.9rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow-sm);">&times;</button>
         <a id="adSlotLink" href="#" target="_blank" rel="noopener sponsored"
-          style="display:flex; align-items:center; gap:18px; background:#FFFFFF; border:1px solid var(--border-card); border-radius:var(--radius-35); padding:18px 26px; box-shadow:var(--shadow-sm); text-decoration:none; transition:all 0.18s ease;"
+          style="display:flex; align-items:center; gap:18px; background:#FFFFFF; border:1px solid var(--border-card); border-radius:var(--radius-35); padding:18px 50px 18px 26px; box-shadow:var(--shadow-sm); text-decoration:none; transition:all 0.18s ease;"
           onmouseover="this.style.borderColor='var(--brand-green)'" onmouseout="this.style.borderColor='var(--border-card)'">
           <img id="adSlotImage" src="" alt="" style="width:64px; height:64px; border-radius:12px; object-fit:cover; display:none; flex-shrink:0;" />
+          <video id="adSlotVideo" muted loop autoplay playsinline
+            style="width:96px; height:64px; border-radius:12px; object-fit:cover; display:none; flex-shrink:0;"></video>
           <div style="flex:1; min-width:0;">
             <span style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim);">Sponsored</span>
             <div id="adSlotTitle" style="font-size:0.98rem; font-weight:700; color:#111827; margin-top:2px;"></div>
@@ -2418,11 +2422,35 @@
         const ad = data.ad;
         if (!ad) return;
 
+        // Closing an ad hides it for the rest of this browser session
+        // (sessionStorage, per tab) - it isn't gone forever, since the
+        // advertiser is still paying for impressions; it just won't
+        // pester the same visitor again until their next visit/session.
+        let dismissed = false;
+        try { dismissed = sessionStorage.getItem('dismissed_ad_' + ad.id) === '1'; } catch (e) {}
+        if (dismissed) return;
+
         document.getElementById('adSlotTitle').textContent = ad.title;
         if (ad.description) {
           document.getElementById('adSlotDescription').textContent = ad.description;
         }
-        if (ad.image_url) {
+
+        // media_url (an upload) takes priority over image_url (the
+        // legacy external-link path, kept for ads created before
+        // upload existed).
+        if (ad.media_url) {
+          const isVideo = (ad.media_content_type || '').startsWith('video/');
+          if (isVideo) {
+            const video = document.getElementById('adSlotVideo');
+            video.src = ad.media_url;
+            video.style.display = 'block';
+          } else {
+            const img = document.getElementById('adSlotImage');
+            img.src = ad.media_url;
+            img.alt = ad.title;
+            img.style.display = 'block';
+          }
+        } else if (ad.image_url) {
           const img = document.getElementById('adSlotImage');
           img.src = ad.image_url;
           img.alt = ad.title;
@@ -2435,6 +2463,13 @@
           if (typeof gtag === 'function') {
             gtag('event', 'ad_click', { ad_id: ad.id, ad_title: ad.title });
           }
+        });
+
+        document.getElementById('adSlotCloseBtn').addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          document.getElementById('adSlot').style.display = 'none';
+          try { sessionStorage.setItem('dismissed_ad_' + ad.id, '1'); } catch (err) {}
         });
 
         document.getElementById('adSlot').style.display = 'block';

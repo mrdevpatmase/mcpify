@@ -396,8 +396,8 @@
         </div>
         <div class="ad-form-row">
           <div>
-            <label for="adImageUrl">Image URL (optional)</label>
-            <input type="text" id="adImageUrl" placeholder="https://.../logo.png" />
+            <label for="adMedia">Image or video (optional, 5-10s if video)</label>
+            <input type="file" id="adMedia" accept="image/*,video/*" />
           </div>
           <div>
             <label for="adDescription">Description (optional)</label>
@@ -555,21 +555,28 @@
         return;
       }
       try {
+        // multipart/form-data, not JSON - lets this carry the file
+        // upload. Don't set Content-Type manually: fetch needs to
+        // generate it itself (with the multipart boundary) from the
+        // FormData body.
+        var formData = new FormData();
+        formData.append('title', title);
+        formData.append('link_url', linkUrl);
+        var description = document.getElementById('adDescription').value.trim();
+        if (description) formData.append('description', description);
+        var mediaFile = document.getElementById('adMedia').files[0];
+        if (mediaFile) formData.append('media', mediaFile);
+
         var res = await fetch('/admin/ads', {
           method: 'POST',
-          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-          body: JSON.stringify({
-            title: title,
-            link_url: linkUrl,
-            image_url: document.getElementById('adImageUrl').value.trim() || null,
-            description: document.getElementById('adDescription').value.trim() || null
-          })
+          headers: authHeaders(),
+          body: formData
         });
         var data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Failed to create ad.');
         document.getElementById('adTitle').value = '';
         document.getElementById('adLinkUrl').value = '';
-        document.getElementById('adImageUrl').value = '';
+        document.getElementById('adMedia').value = '';
         document.getElementById('adDescription').value = '';
         document.getElementById('adForm').style.display = 'none';
         loadAds();
