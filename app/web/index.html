@@ -2034,13 +2034,30 @@
       errorCard.style.display = 'none';
 
       try {
+        let authToken = null;
+        try { authToken = localStorage.getItem('mcpify_token'); } catch (e) {}
+
+        if (!authToken) {
+          window.location.href = '/login?next=' + encodeURIComponent('/?url=' + encodeURIComponent(targetUrl));
+          return;
+        }
+
         const payload = { url: targetUrl };
 
         const response = await fetch('/generate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + authToken
+          },
           body: JSON.stringify(payload)
         });
+
+        if (response.status === 401) {
+          try { localStorage.removeItem('mcpify_token'); } catch (e) {}
+          window.location.href = '/login?next=' + encodeURIComponent('/?url=' + encodeURIComponent(targetUrl));
+          return;
+        }
 
         if (!response.ok) {
           const errData = await response.json();

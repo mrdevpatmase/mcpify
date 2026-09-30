@@ -408,7 +408,10 @@ def determine_recommended_mcp_endpoint(
     return f"{base_url}/mcp"
 
 
-async def analyze_agent_url(url: str, request: Optional[Any] = None, api_key: Optional[str] = None) -> Dict[str, Any]:
+async def analyze_agent_url(
+    url: str, request: Optional[Any] = None, api_key: Optional[str] = None,
+    owner_user_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Main analysis function.
     Probes standard endpoints, inspects response signatures,
@@ -499,7 +502,8 @@ async def analyze_agent_url(url: str, request: Optional[Any] = None, api_key: Op
 
         proxy = await proxy_manager.create_proxy(
             target_url=normalized_url, has_mcp=False, api_key=api_key, request=request,
-            openapi_operations=openapi_operations, graphql_config=graphql_config
+            openapi_operations=openapi_operations, graphql_config=graphql_config,
+            owner_user_id=owner_user_id,
         )
         proxy_url = proxy["proxy_url"]
         proxy_id = proxy["proxy_id"]

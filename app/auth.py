@@ -7,9 +7,8 @@ import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import get_db
+from app.db import get_session_factory
 from app.models import User
 
 JWT_ALGORITHM = "HS256"
@@ -58,10 +57,21 @@ def decode_access_token(token: str) -> str:
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
-    db: AsyncSession = Depends(get_db),
 ) -> User:
-    """FastAPI dependency gating any endpoint that needs a real logged-in
-    user (proxy creation/ownership) rather than just an API key."""
+    """
+    FastAPI dependency gating any endpoint that needs a real logged-in
+    user (proxy creation/ownership) rather than just an API key.
+
+    Deliberately does NOT take `db: AsyncSession = Depends(get_db)` as a
+    parameter - FastAPI resolves ALL of a dependency's own Depends()
+    eagerly before running its body, so a `db` parameter would open a
+    DB session (and raise, if DATABASE_URL isn't configured) even for a
+    request with no Authorization header at all, turning a clean 401
+    into a confusing 500 in any environment without DATABASE_URL set
+    (e.g. this project's test suite). Opening the session manually,
+    after the credentials/token checks already passed, means a request
+    that was always going to 401 never touches the DB.
+    """
     if not credentials:
         raise HTTPException(status_code=401, detail="Missing Authorization: Bearer <token> header.")
 
@@ -72,8 +82,11 @@ async def get_current_user(
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token.")
 
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+
     if not user:
         raise HTTPException(status_code=401, detail="User for this token no longer exists.")
     return user

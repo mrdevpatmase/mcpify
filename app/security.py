@@ -19,9 +19,8 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 def _verify_key_against_env(env_var: str, request: Request, api_key: Optional[str]) -> Optional[str]:
-    """Shared logic behind verify_admin_key and verify_public_key: both gate
-    a route behind a bearer/X-API-Key header matching one env var, and both
-    stay open when that env var isn't set. Only the env var name differs."""
+    """Gates a route behind a bearer/X-API-Key header matching one env var,
+    staying open when that env var isn't set. Used by verify_admin_key."""
     expected_key = os.getenv(env_var)
     if not expected_key:
         return None  # Unprotected mode (unset = open, by design)
@@ -46,21 +45,6 @@ async def verify_admin_key(request: Request, api_key: str = Security(api_key_hea
     If ADMIN_API_KEY is not set, admin endpoints remain open (for local dev mode).
     """
     return _verify_key_against_env("ADMIN_API_KEY", request, api_key)
-
-
-async def verify_public_key(request: Request, api_key: str = Security(api_key_header)) -> Optional[str]:
-    """
-    FastAPI dependency: gates the public-facing /proxy/create, /analyze,
-    /generate, /guide endpoints behind PUBLIC_API_KEY when the operator sets
-    it. Unset (the default) keeps these endpoints open, preserving the
-    paste-a-URL-in-the-browser self-serve flow that browser JS can't hold a
-    secret for. Setting PUBLIC_API_KEY is an explicit opt-in for operators
-    who'd rather run this as a gated internal tool than a public product.
-    Deliberately a separate env var from ADMIN_API_KEY: "who can create
-    proxies" and "who can administer this deployment" are different trust
-    levels, and an operator may want one gated without the other.
-    """
-    return _verify_key_against_env("PUBLIC_API_KEY", request, api_key)
 
 
 def log_production_readiness_warnings() -> None:

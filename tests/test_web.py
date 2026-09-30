@@ -22,8 +22,30 @@ def test_api_info():
     assert response.status_code == 200
     assert response.json()["service"] == "MCPify"
 
-def test_generate_config():
+def test_generate_requires_auth():
+    # /generate (like /analyze, /guide, /proxy/create) creates a proxy
+    # record tied to the caller's account for a non-native-MCP target -
+    # unauthenticated callers must be rejected before any DB/network
+    # work happens, not just discouraged.
     response = client.post("/generate", json={"url": "https://fastapi.tiangolo.com"})
+    assert response.status_code == 401
+
+
+@pytest.mark.network
+def test_generate_config():
+    # Needs both a real network target and a logged-in user - run
+    # manually against an environment with DATABASE_URL configured, not
+    # part of the default (network-excluded) suite.
+    signup = client.post(
+        "/auth/signup",
+        json={"email": "test-generate@example.com", "password": "testpass123",
+              "first_name": "Test", "last_name": "User"},
+    )
+    token = signup.json()["access_token"]
+    response = client.post(
+        "/generate", json={"url": "https://fastapi.tiangolo.com"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "success"

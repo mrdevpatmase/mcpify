@@ -275,11 +275,19 @@
         <button type="submit" class="btn-submit" id="submitBtn">Sign up</button>
       </form>
 
-      <p class="auth-switch">Already have an account? <a href="/login">Log in</a></p>
+      <p class="auth-switch">Already have an account? <a href="/login" id="loginLink">Log in</a></p>
     </div>
   </main>
 
   <script>
+    (function () {
+      var nextParam = new URLSearchParams(window.location.search).get('next');
+      if (nextParam) {
+        var loginLink = document.getElementById('loginLink');
+        if (loginLink) loginLink.href = '/login?next=' + encodeURIComponent(nextParam);
+      }
+    })();
+
     document.getElementById('togglePassword').addEventListener('click', function () {
       var input = document.getElementById('password');
       var eye = document.getElementById('eyeIcon');
@@ -315,7 +323,8 @@
           throw new Error(data.detail || 'Signup failed.');
         }
         localStorage.setItem('mcpify_token', data.access_token);
-        window.location.href = '/';
+        var nextUrl = new URLSearchParams(window.location.search).get('next');
+        window.location.href = nextUrl || '/';
       } catch (err) {
         errorEl.textContent = err.message || 'Something went wrong.';
         errorEl.style.display = 'block';

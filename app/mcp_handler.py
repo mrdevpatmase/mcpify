@@ -6,9 +6,10 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 from app.analyzer import analyze_agent_url
+from app.auth import get_current_user
 from app.generator import generate_mcp_configurations
+from app.models import User
 from app.rate_limit import limiter
-from app.security import verify_public_key
 
 
 # ---------------------------------------------------------
@@ -66,12 +67,18 @@ class IntegrationGuideRequest(BaseModel):
 # Core Helper Logic
 # ---------------------------------------------------------
 
-async def run_analysis(url: str, request: Optional[Any] = None, api_key: Optional[str] = None) -> Dict[str, Any]:
-    return await analyze_agent_url(url, request=request, api_key=api_key)
+async def run_analysis(
+    url: str, request: Optional[Any] = None, api_key: Optional[str] = None,
+    owner_user_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    return await analyze_agent_url(url, request=request, api_key=api_key, owner_user_id=owner_user_id)
 
 
-async def run_generation(url: str, request: Optional[Any] = None, api_key: Optional[str] = None) -> Dict[str, Any]:
-    analysis = await analyze_agent_url(url, request=request, api_key=api_key)
+async def run_generation(
+    url: str, request: Optional[Any] = None, api_key: Optional[str] = None,
+    owner_user_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    analysis = await analyze_agent_url(url, request=request, api_key=api_key, owner_user_id=owner_user_id)
     configs = generate_mcp_configurations(
         url=analysis["url"],
         recommended_mcp_endpoint=analysis.get("recommended_mcp_endpoint"),
@@ -85,8 +92,11 @@ async def run_generation(url: str, request: Optional[Any] = None, api_key: Optio
     }
 
 
-async def run_guide(url: str, platform: str = "claude_desktop", request: Optional[Any] = None, api_key: Optional[str] = None) -> Dict[str, Any]:
-    analysis = await analyze_agent_url(url, request=request, api_key=api_key)
+async def run_guide(
+    url: str, platform: str = "claude_desktop", request: Optional[Any] = None, api_key: Optional[str] = None,
+    owner_user_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    analysis = await analyze_agent_url(url, request=request, api_key=api_key, owner_user_id=owner_user_id)
     configs = generate_mcp_configurations(
         url=analysis["url"],
         recommended_mcp_endpoint=analysis.get("recommended_mcp_endpoint"),
@@ -250,14 +260,17 @@ async def analyze_agent_endpoint(
     request: Request,
     payload: Optional[AnalyzeAgentRequest] = None,
     url: Optional[str] = Query(None, description="The agent URL if using GET"),
-    _public: Optional[str] = Depends(verify_public_key),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     target_url = payload.url if payload else url
     if not target_url:
         raise HTTPException(status_code=400, detail="Missing required 'url' parameter.")
 
     try:
-        return await run_analysis(target_url, request=request, api_key=payload.api_key if payload else None)
+        return await run_analysis(
+            target_url, request=request, api_key=payload.api_key if payload else None,
+            owner_user_id=current_user.id,
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -271,14 +284,17 @@ async def generate_mcp_config_endpoint(
     request: Request,
     payload: Optional[GenerateConfigRequest] = None,
     url: Optional[str] = Query(None, description="The agent URL if using GET"),
-    _public: Optional[str] = Depends(verify_public_key),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     target_url = payload.url if payload else url
     if not target_url:
         raise HTTPException(status_code=400, detail="Missing required 'url' parameter.")
 
     try:
-        return await run_generation(target_url, request=request, api_key=payload.api_key if payload else None)
+        return await run_generation(
+            target_url, request=request, api_key=payload.api_key if payload else None,
+            owner_user_id=current_user.id,
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -292,7 +308,7 @@ async def get_integration_guide_endpoint(
     payload: Optional[IntegrationGuideRequest] = None,
     url: Optional[str] = Query(None, description="The agent URL if using GET"),
     platform: PlatformEnum = Query(PlatformEnum.claude_desktop, description="Target platform"),
-    _public: Optional[str] = Depends(verify_public_key),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     target_url = payload.url if payload else url
     target_platform = payload.platform.value if payload else platform.value
@@ -301,7 +317,10 @@ async def get_integration_guide_endpoint(
         raise HTTPException(status_code=400, detail="Missing required 'url' parameter.")
 
     try:
-        return await run_guide(target_url, target_platform, request=request, api_key=payload.api_key if payload else None)
+        return await run_guide(
+            target_url, target_platform, request=request, api_key=payload.api_key if payload else None,
+            owner_user_id=current_user.id,
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
