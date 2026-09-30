@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Dashboard — MCPify</title>
+  <meta name="description" content="Manage your MCPify proxies and account.">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Red+Hat+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="/navbar.css?v=2">
+
+  <style>
+    :root {
+      --bg-canvas: #FFFFFF;
+      --brand-green: #1B4D3E;
+      --brand-green-hover: #13392E;
+      --font-title: 'Red Hat Display', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-desc: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+      --text-main: #111827;
+      --text-muted: #4B5563;
+      --text-dim: #9CA3AF;
+      --border-subtle: #E5E7EB;
+      --radius-35: 35px;
+      --radius-md: 14px;
+      --radius-full: 9999px;
+      --status-red: #DC2626;
+      --status-green: #166534;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      font-family: var(--font-desc);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    h1, h2, h3 { font-family: var(--font-title); }
+    a { color: inherit; text-decoration: none; }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    .page-title {
+      font-size: 1.9rem;
+      font-weight: 800;
+      letter-spacing: -0.6px;
+      margin: 34px 0 6px;
+    }
+
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      margin-bottom: 28px;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin: 32px 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .btn {
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 9px 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--font-desc);
+      transition: all 0.18s ease;
+    }
+
+    .btn-primary { background: var(--brand-green); color: #fff; }
+    .btn-primary:hover { background: var(--brand-green-hover); }
+    .btn-outline { background: #fff; border: 1px solid var(--border-subtle); color: var(--text-main); }
+    .btn-outline:hover { border-color: var(--brand-green); color: var(--brand-green); }
+    .btn-danger { background: #fff; border: 1px solid #FCA5A5; color: var(--status-red); }
+    .btn-danger:hover { background: #FEF2F2; }
+    .btn-sm { padding: 6px 12px; font-size: 0.78rem; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .empty-note {
+      padding: 40px 20px;
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      text-align: center;
+      background: #FAFAFA;
+      border-radius: var(--radius-md);
+      border: 1px dashed var(--border-subtle);
+    }
+
+    .proxy-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 18px 22px;
+      margin-bottom: 12px;
+    }
+
+    .proxy-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .proxy-url {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-main);
+      word-break: break-all;
+    }
+
+    .proxy-meta {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      margin-top: 4px;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .badge-mcp { background: rgba(27, 77, 62, 0.08); color: var(--brand-green); }
+    .badge-proxy { background: #F3F4F6; color: #4B5563; }
+
+    .proxy-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+    .config-panel {
+      display: none;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px dashed var(--border-subtle);
+    }
+
+    .config-panel select {
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 6px 10px;
+      font-size: 0.82rem;
+      margin-bottom: 10px;
+    }
+
+    .config-code {
+      background: #181D24;
+      color: #E2E8F0;
+      border-radius: var(--radius-md);
+      padding: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      overflow-x: auto;
+      max-height: 280px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .copy-row { display: flex; justify-content: flex-end; margin-top: 8px; }
+
+    .settings-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      max-width: 480px;
+    }
+
+    .settings-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.88rem;
+    }
+
+    .settings-row:last-child { border-bottom: none; }
+    .settings-label { color: var(--text-dim); }
+    .settings-value { font-weight: 600; }
+
+    .form-group { margin-bottom: 14px; }
+
+    .form-label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #14352B;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .form-input {
+      width: 100%;
+      border: 1.5px solid rgba(27, 77, 62, 0.20);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      font-size: 0.88rem;
+      outline: none;
+    }
+
+    .form-input:focus { border-color: var(--brand-green); }
+
+    .form-msg {
+      display: none;
+      font-size: 0.82rem;
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+
+    .form-msg.error { background: #FEF2F2; color: var(--status-red); border: 1px solid #FEE2E2; }
+    .form-msg.success { background: #F0FDF4; color: var(--status-green); border: 1px solid #BBF7D0; }
+
+    .danger-zone {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .danger-zone p { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 10px; }
+  </style>
+</head>
+
+<body>
+
+  <div id="navbar-container">
+    <!-- NAVBAR_COMPONENT -->
+  </div>
+
+  <div class="container">
+    <h1 class="page-title">My Dashboard</h1>
+    <p class="page-subtitle">Manage the MCP proxies you've created and your account.</p>
+
+    <div class="section-title">
+      <span>My Proxies</span>
+      <a href="/" class="btn btn-primary btn-sm">+ New</a>
+    </div>
+    <div id="proxiesContainer">
+      <div class="empty-note">Loading...</div>
+    </div>
+
+    <div class="section-title">Account Settings</div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <span class="settings-label">Name</span>
+        <span class="settings-value" id="acctName">—</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Email</span>
+        <span class="settings-value" id="acctEmail">—</span>
+      </div>
+
+      <div class="danger-zone">
+        <p><strong>Change password</strong></p>
+        <div class="form-msg" id="pwMsg"></div>
+        <form id="pwForm">
+          <div class="form-group">
+            <label class="form-label" for="currentPassword">Current password</label>
+            <input type="password" id="currentPassword" class="form-input" required autocomplete="current-password" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="newPassword">New password</label>
+            <input type="password" id="newPassword" class="form-input" required minlength="8" autocomplete="new-password" />
+          </div>
+          <button type="submit" class="btn btn-outline" id="pwSubmitBtn">Update password</button>
+        </form>
+      </div>
+
+      <div class="danger-zone">
+        <p><strong>Delete account</strong> — this cannot be undone. Proxies you created keep working but won't be manageable from here anymore.</p>
+        <button type="button" class="btn btn-danger" id="deleteAccountBtn">Delete my account</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var token = null;
+    try { token = localStorage.getItem('mcpify_token'); } catch (e) {}
+    if (!token) {
+      window.location.replace('/login?next=' + encodeURIComponent('/dashboard'));
+    }
+
+    function authHeaders(extra) {
+      var h = { 'Authorization': 'Bearer ' + token };
+      if (extra) Object.assign(h, extra);
+      return h;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    async function loadAccount() {
+      var res = await fetch('/auth/me', { headers: authHeaders() });
+      if (!res.ok) {
+        try { localStorage.removeItem('mcpify_token'); } catch (e) {}
+        window.location.replace('/login?next=' + encodeURIComponent('/dashboard'));
+        return;
+      }
+      var data = await res.json();
+      document.getElementById('acctName').textContent = (data.first_name || '') + ' ' + (data.last_name || '');
+      document.getElementById('acctEmail').textContent = data.email;
+    }
+
+    async function loadProxies() {
+      var container = document.getElementById('proxiesContainer');
+      try {
+        var res = await fetch('/proxy/mine', { headers: authHeaders() });
+        var data = await res.json();
+        var proxies = data.proxies || [];
+
+        if (proxies.length === 0) {
+          container.innerHTML = '<div class="empty-note">You haven\'t created any proxies yet. <a href="/" style="color:var(--brand-green);font-weight:600;">Generate one</a>.</div>';
+          return;
+        }
+
+        container.innerHTML = proxies.map(function (p) {
+          var badge = p.has_mcp
+            ? '<span class="badge badge-mcp">Native MCP</span>'
+            : '<span class="badge badge-proxy">Proxy</span>';
+          return (
+            '<div class="proxy-card" data-proxy-id="' + p.proxy_id + '">' +
+              '<div class="proxy-card-top">' +
+                '<div>' +
+                  '<div class="proxy-url">' + escapeHtml(p.target_url) + '</div>' +
+                  '<div class="proxy-meta">' +
+                    badge +
+                    '<span>Created ' + new Date(p.created_at).toLocaleDateString() + '</span>' +
+                    '<span>Last used ' + new Date(p.last_used).toLocaleDateString() + '</span>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="proxy-actions">' +
+                  '<button type="button" class="btn btn-outline btn-sm" onclick="toggleConfig(\'' + p.proxy_id + '\')">View config</button>' +
+                  '<button type="button" class="btn btn-danger btn-sm" onclick="deleteProxy(\'' + p.proxy_id + '\')">Delete</button>' +
+                '</div>' +
+              '</div>' +
+              '<div class="config-panel" id="config-' + p.proxy_id + '">' +
+                '<select onchange="renderConfig(\'' + p.proxy_id + '\')" id="platform-' + p.proxy_id + '">' +
+                  '<option value="claude_desktop">Claude Desktop</option>' +
+                  '<option value="cursor_vscode">Cursor / VS Code</option>' +
+                  '<option value="windsurf">Windsurf</option>' +
+                  '<option value="cline">Cline</option>' +
+                  '<option value="vscode">VS Code (native)</option>' +
+                  '<option value="claude_code_cli">Claude Code CLI</option>' +
+                '</select>' +
+                '<pre class="config-code" id="code-' + p.proxy_id + '">Loading...</pre>' +
+                '<div class="copy-row"><button type="button" class="btn btn-outline btn-sm" onclick="copyConfig(\'' + p.proxy_id + '\')">Copy</button></div>' +
+              '</div>' +
+            '</div>'
+          );
+        }).join('');
+      } catch (e) {
+        container.innerHTML = '<div class="empty-note">Failed to load your proxies.</div>';
+      }
+    }
+
+    var configCache = {};
+
+    async function toggleConfig(proxyId) {
+      var panel = document.getElementById('config-' + proxyId);
+      var isOpen = panel.style.display === 'block';
+      panel.style.display = isOpen ? 'none' : 'block';
+      if (!isOpen && !configCache[proxyId]) {
+        var res = await fetch('/proxy/' + proxyId + '/config', { headers: authHeaders() });
+        if (res.ok) {
+          var data = await res.json();
+          configCache[proxyId] = data.configs;
+          renderConfig(proxyId);
+        } else {
+          document.getElementById('code-' + proxyId).textContent = 'Failed to load config.';
+        }
+      }
+    }
+
+    function renderConfig(proxyId) {
+      var configs = configCache[proxyId];
+      if (!configs) return;
+      var platform = document.getElementById('platform-' + proxyId).value;
+      var codeEl = document.getElementById('code-' + proxyId);
+      codeEl.textContent = JSON.stringify(configs[platform] || configs, null, 2);
+    }
+
+    function copyConfig(proxyId) {
+      var text = document.getElementById('code-' + proxyId).textContent;
+      navigator.clipboard.writeText(text).catch(function () {});
+    }
+
+    async function deleteProxy(proxyId) {
+      if (!confirm('Delete this proxy? This cannot be undone.')) return;
+      var res = await fetch('/proxy/' + proxyId, { method: 'DELETE', headers: authHeaders() });
+      if (res.ok) {
+        document.querySelector('[data-proxy-id="' + proxyId + '"]').remove();
+      } else {
+        alert('Failed to delete proxy.');
+      }
+    }
+
+    document.getElementById('pwForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var msg = document.getElementById('pwMsg');
+      var btn = document.getElementById('pwSubmitBtn');
+      msg.style.display = 'none';
+      btn.disabled = true;
+
+      try {
+        var res = await fetch('/auth/change-password', {
+          method: 'POST',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            current_password: document.getElementById('currentPassword').value,
+            new_password: document.getElementById('newPassword').value
+          })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to update password.');
+        msg.className = 'form-msg success';
+        msg.textContent = 'Password updated.';
+        msg.style.display = 'block';
+        document.getElementById('pwForm').reset();
+      } catch (err) {
+        msg.className = 'form-msg error';
+        msg.textContent = err.message;
+        msg.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('deleteAccountBtn').addEventListener('click', async function () {
+      if (!confirm('Delete your account permanently? This cannot be undone.')) return;
+      var res = await fetch('/auth/me', { method: 'DELETE', headers: authHeaders() });
+      if (res.ok) {
+        try { localStorage.removeItem('mcpify_token'); } catch (e) {}
+        window.location.href = '/';
+      } else {
+        alert('Failed to delete account.');
+      }
+    });
+
+    loadAccount();
+    loadProxies();
+  </script>
+
+</body>
+
+</html>

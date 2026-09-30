@@ -370,6 +370,15 @@ async def signup_page():
     return render_web_page("signup.html")
 
 
+@app.get("/dashboard", summary="My Dashboard Page", response_class=HTMLResponse, include_in_schema=False)
+async def dashboard_page():
+    """Like /admin, carries no data itself - client-side JS redirects to
+    /login if there's no token, then loads /auth/me and /proxy/mine with
+    it. noindex'd (meta robots tag in the page itself) since this is
+    per-user private data, not something to ever show up in search."""
+    return render_web_page("dashboard.html")
+
+
 @app.get("/admin", summary="Admin Dashboard Page", response_class=HTMLResponse, include_in_schema=False)
 async def admin_page():
     """The page itself carries no data - it prompts for the admin key
@@ -681,6 +690,26 @@ async def list_my_proxies_endpoint(request: Request, current_user: User = Depend
     }
 
 
+@app.get("/proxy/{proxy_id}/config", summary="Get My Proxy's Client Configs")
+@limiter.limit("30/minute")
+async def get_my_proxy_config_endpoint(
+    request: Request,
+    proxy_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Regenerates the Claude Desktop/Cursor/Windsurf/etc config snippets
+    for an EXISTING proxy - generate_proxy_config is a pure function of
+    (proxy_url, target_url), so this needs no re-analysis of the target,
+    just the already-stored proxy record. Lets the dashboard show/copy
+    configs again without recreating the proxy. Ownership-checked the
+    same way as DELETE /proxy/{proxy_id}."""
+    proxy = await proxy_manager.get_proxy(proxy_id)
+    if not proxy or proxy.get("owner_user_id") != current_user.id:
+        raise HTTPException(status_code=404, detail=f"Proxy ID '{proxy_id}' not found.")
+    configs = generate_proxy_config(proxy["proxy_url"], proxy["target_url"])
+    return {"proxy_id": proxy_id, "target_url": proxy["target_url"], "configs": configs}
+
+
 @app.delete("/proxy/{proxy_id}", summary="Delete My Proxy")
 @limiter.limit("20/minute")
 async def delete_my_proxy_endpoint(
@@ -927,7 +956,8 @@ async def serve_frontend_catch_all(full_path: str):
         clean_path.startswith("openapi.json") or
         clean_path.startswith("redoc") or
         clean_path.startswith("admin") or
-        clean_path.startswith("auth")
+        clean_path.startswith("auth") or
+        clean_path.startswith("dashboard")
     ):
         raise HTTPException(status_code=404, detail="Endpoint not found.")
 

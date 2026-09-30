@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import create_access_token, get_current_user, hash_password, verify_password
-from app.db import get_db
+from app.db import get_db, get_session_factory
 from app.models import User
 from app.rate_limit import limiter
 
@@ -22,6 +22,11 @@ class SignupRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=8, max_length=128)
 
 
 class TokenResponse(BaseModel):
@@ -86,3 +91,45 @@ async def me(current_user: User = Depends(get_current_user)):
         "last_name": current_user.last_name,
         "created_at": current_user.created_at.isoformat(),
     }
+
+
+@router.post("/change-password", summary="Change my password")
+@limiter.limit("10/minute")
+async def change_password(
+    request: Request,
+    payload: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+):
+    # Deliberately opens its own DB session here (not a `db: Depends(get_db)`
+    # parameter) rather than reusing current_user's - that one was already
+    # closed by the time this function runs (see get_current_user's own
+    # docstring on why it manages its session manually instead of via
+    # Depends), and a fresh one is opened only now that get_current_user
+    # has already confirmed a valid, logged-in caller.
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        result = await db.execute(select(User).where(User.id == current_user.id))
+        user = result.scalar_one_or_none()
+        if not user or not verify_password(payload.current_password, user.hashed_password):
+            raise HTTPException(status_code=401, detail="Current password is incorrect.")
+        user.hashed_password = hash_password(payload.new_password)
+        await db.commit()
+    return {"status": "password changed"}
+
+
+@router.delete("/me", summary="Delete my account")
+@limiter.limit("10/minute")
+async def delete_account(request: Request, current_user: User = Depends(get_current_user)):
+    """Deletes the account row only - existing proxies this user created
+    are left as-is (they still work; owner_user_id just points at a user
+    that no longer exists) rather than cascading, consistent with proxies
+    otherwise being cleaned up by their own 90-day TTL, not account
+    lifecycle."""
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        result = await db.execute(select(User).where(User.id == current_user.id))
+        user = result.scalar_one_or_none()
+        if user:
+            await db.delete(user)
+            await db.commit()
+    return {"deleted": True}
