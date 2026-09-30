@@ -56,6 +56,13 @@ class Ad(Base):
     # handful of ads, not user-generated uploads at scale).
     media_data: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     media_content_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    # Which page/slot this ad shows in - see app/ads_routes.py's
+    # AD_PLACEMENTS for the fixed list. NOT NULL with a DB-level DEFAULT
+    # (not just a Python-side one) so the ALTER TABLE that adds this to
+    # the already-live ads table can backfill the existing "Aikart" ad
+    # row in the same statement, unlike first_name/last_name/media_*
+    # above which had no sensible default to backfill with.
+    placement: Mapped[str] = mapped_column(String(50), nullable=False, server_default="landing_top")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )

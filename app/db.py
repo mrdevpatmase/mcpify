@@ -121,3 +121,6 @@ async def init_db() -> None:
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)"))
         await conn.execute(text("ALTER TABLE ads ADD COLUMN IF NOT EXISTS media_data BYTEA"))
         await conn.execute(text("ALTER TABLE ads ADD COLUMN IF NOT EXISTS media_content_type VARCHAR(100)"))
+        await conn.execute(
+            text("ALTER TABLE ads ADD COLUMN IF NOT EXISTS placement VARCHAR(50) NOT NULL DEFAULT 'landing_top'")
+        )

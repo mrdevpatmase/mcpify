@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional, Tuple
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select, update
@@ -12,6 +12,23 @@ from app.rate_limit import limiter
 from app.security import is_public_url, verify_admin_key
 
 router = APIRouter(tags=["Ads"])
+
+# Fixed set of slots this app actually renders an ad in - one page can
+# have more than one (index.html has landing_top and landing_bottom).
+# Adding a new location means adding both a name here and the matching
+# fetch('/ads/current?placement=...') call in that page's own HTML/JS;
+# this list is just what create/update validate against.
+AD_PLACEMENTS = ["landing_top", "landing_bottom", "login", "signup", "dashboard"]
+DEFAULT_PLACEMENT = "landing_top"
+
+
+def _validate_placement(placement: str) -> str:
+    if placement not in AD_PLACEMENTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid placement '{placement}'. Must be one of: {', '.join(AD_PLACEMENTS)}.",
+        )
+    return placement
 
 # 15MB covers a 5-10s video at a reasonable bitrate comfortably and is
 # generous for a static image; there's no server-side duration check
@@ -40,6 +57,7 @@ class UpdateAdRequest(BaseModel):
     image_url: Optional[str] = Field(None, max_length=1000)
     description: Optional[str] = Field(None, max_length=2000)
     active: Optional[bool] = None
+    placement: Optional[str] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
 
@@ -58,6 +76,7 @@ def _serialize(ad: Ad) -> dict:
         "link_url": ad.link_url,
         "description": ad.description,
         "active": ad.active,
+        "placement": ad.placement,
         "start_date": ad.start_date.isoformat() if ad.start_date else None,
         "end_date": ad.end_date.isoformat() if ad.end_date else None,
         "impressions": ad.impressions,
@@ -77,6 +96,7 @@ async def create_ad(
     title: str = Form(..., min_length=1, max_length=200),
     link_url: str = Form(..., min_length=1, max_length=1000),
     description: Optional[str] = Form(None, max_length=2000),
+    placement: str = Form(DEFAULT_PLACEMENT),
     media: Optional[UploadFile] = File(None, description="An image or a short (5-10s) video."),
     _admin: Optional[str] = Depends(verify_admin_key),
     db=Depends(get_db),
@@ -90,12 +110,14 @@ async def create_ad(
     if not is_safe:
         raise HTTPException(status_code=400, detail=f"Refusing to save ad link: {reason}")
 
+    placement = _validate_placement(placement)
     media_data, media_content_type = await _read_media(media)
 
     ad = Ad(
         title=title,
         link_url=link_url,
         description=description,
+        placement=placement,
         media_data=media_data,
         media_content_type=media_content_type,
     )
@@ -143,6 +165,8 @@ async def update_ad(
         is_safe, reason = await is_public_url(updates["link_url"])
         if not is_safe:
             raise HTTPException(status_code=400, detail=f"Refusing to save ad link: {reason}")
+    if "placement" in updates and updates["placement"]:
+        updates["placement"] = _validate_placement(updates["placement"])
 
     for field, value in updates.items():
         setattr(ad, field, value)
@@ -168,14 +192,17 @@ async def delete_ad(request: Request, ad_id: str, _admin: Optional[str] = Depend
 
 @router.get("/ads/current", summary="Get the Current Active Ad")
 @limiter.limit("60/minute")
-async def get_current_ad(request: Request):
-    """Public, unauthenticated - this is what the landing page calls to
-    decide what to render. Picks the most recently created ad that's
-    active and within its date window (if one is set); {} if none."""
+async def get_current_ad(request: Request, placement: str = Query(DEFAULT_PLACEMENT)):
+    """Public, unauthenticated - this is what each page's own ad slot
+    calls (with its own ?placement=...) to decide what to render.
+    Picks the most recently created ad for that placement that's active
+    and within its date window (if one is set); {} if none."""
     now = datetime.now(timezone.utc)
     session_factory = get_session_factory()
     async with session_factory() as db:
-        result = await db.execute(select(Ad).where(Ad.active.is_(True)).order_by(Ad.created_at.desc()))
+        result = await db.execute(
+            select(Ad).where(Ad.active.is_(True), Ad.placement == placement).order_by(Ad.created_at.desc())
+        )
         ads = result.scalars().all()
 
     for ad in ads:

@@ -272,7 +272,7 @@
       margin-bottom: 5px;
     }
 
-    .ad-form input, .ad-form textarea {
+    .ad-form input, .ad-form textarea, .ad-form select {
       width: 100%;
       border: 1.5px solid rgba(27, 77, 62, 0.2);
       border-radius: var(--radius-md);
@@ -280,9 +280,10 @@
       font-size: 0.85rem;
       font-family: var(--font-desc);
       outline: none;
+      background: #fff;
     }
 
-    .ad-form input:focus, .ad-form textarea:focus { border-color: var(--brand-green); }
+    .ad-form input:focus, .ad-form textarea:focus, .ad-form select:focus { border-color: var(--brand-green); }
 
     .badge-active {
       background: rgba(22, 101, 52, 0.08);
@@ -396,9 +397,21 @@
         </div>
         <div class="ad-form-row">
           <div>
+            <label for="adPlacement">Location</label>
+            <select id="adPlacement">
+              <option value="landing_top">Landing page - top (below hero)</option>
+              <option value="landing_bottom">Landing page - bottom (near FAQ)</option>
+              <option value="login">Login page</option>
+              <option value="signup">Signup page</option>
+              <option value="dashboard">User dashboard</option>
+            </select>
+          </div>
+          <div>
             <label for="adMedia">Image or video (optional, 5-10s if video)</label>
             <input type="file" id="adMedia" accept="image/*,video/*" />
           </div>
+        </div>
+        <div class="ad-form-row">
           <div>
             <label for="adDescription">Description (optional)</label>
             <input type="text" id="adDescription" placeholder="Short one-line description" />
@@ -410,7 +423,7 @@
       <div class="panel">
         <table>
           <thead>
-            <tr><th>Title</th><th>Status</th><th>Impressions (DB)</th><th>Clicks (DB)</th><th>Actions</th></tr>
+            <tr><th>Title</th><th>Location</th><th>Status</th><th>Impressions (DB)</th><th>Clicks (DB)</th><th>Actions</th></tr>
           </thead>
           <tbody id="adsBody"></tbody>
         </table>
@@ -533,6 +546,7 @@
           var tr = document.createElement('tr');
           tr.innerHTML =
             '<td>' + escapeHtml(ad.title) + '</td>' +
+            '<td class="mono">' + escapeHtml(ad.placement) + '</td>' +
             '<td><span class="' + (ad.active ? 'badge-active' : 'badge-inactive') + '">' + (ad.active ? 'Active' : 'Inactive') + '</span></td>' +
             '<td>' + ad.impressions + '</td>' +
             '<td>' + ad.clicks + '</td>' +
@@ -562,6 +576,7 @@
         var formData = new FormData();
         formData.append('title', title);
         formData.append('link_url', linkUrl);
+        formData.append('placement', document.getElementById('adPlacement').value);
         var description = document.getElementById('adDescription').value.trim();
         if (description) formData.append('description', description);
         var mediaFile = document.getElementById('adMedia').files[0];

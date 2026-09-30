@@ -1982,6 +1982,24 @@
         </div>
       </section>
 
+      <!-- Sponsored Ad Slot - bottom placement (hidden until /ads/current?placement=landing_bottom returns one) -->
+      <section id="adSlotBottom" style="display:none; margin-bottom: 40px; position:relative;">
+        <button type="button" id="adSlotBottomCloseBtn" aria-label="Close ad"
+          style="position:absolute; top:10px; right:10px; z-index:2; width:26px; height:26px; border-radius:50%; border:1px solid var(--border-card); background:#FFFFFF; color:var(--text-muted); font-size:0.9rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow-sm);">&times;</button>
+        <a id="adSlotBottomLink" href="#" target="_blank" rel="noopener sponsored"
+          style="display:flex; align-items:center; gap:18px; background:#FFFFFF; border:1px solid var(--border-card); border-radius:var(--radius-35); padding:18px 50px 18px 26px; box-shadow:var(--shadow-sm); text-decoration:none; transition:all 0.18s ease;"
+          onmouseover="this.style.borderColor='var(--brand-green)'" onmouseout="this.style.borderColor='var(--border-card)'">
+          <img id="adSlotBottomImage" src="" alt="" style="width:64px; height:64px; border-radius:12px; object-fit:cover; display:none; flex-shrink:0;" />
+          <video id="adSlotBottomVideo" muted loop autoplay playsinline
+            style="width:96px; height:64px; border-radius:12px; object-fit:cover; display:none; flex-shrink:0;"></video>
+          <div style="flex:1; min-width:0;">
+            <span style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim);">Sponsored</span>
+            <div id="adSlotBottomTitle" style="font-size:0.98rem; font-weight:700; color:#111827; margin-top:2px;"></div>
+            <div id="adSlotBottomDescription" style="font-size:0.84rem; color:var(--text-muted); margin-top:2px;"></div>
+          </div>
+        </a>
+      </section>
+
     </div>
   </main>
 
@@ -2405,26 +2423,30 @@
       }
     });
 
-    // Sponsored ad slot: fetch the current ad (if any), render it, and
-    // record one impression - both server-side (a DB counter in
-    // app/ads_routes.py, for the admin dashboard) and as a GA4 custom
-    // event (gtag), so the same number is cross-checkable in Google
-    // Analytics too. The click itself isn't tracked via fetch/beacon -
-    // the link's href points at GET /ads/{id}/click, a real server
-    // redirect, so the click still counts even with JS disabled or a
-    // slow/failed beacon; the onclick handler only fires the GA event
-    // (fire-and-forget, doesn't block navigation).
-    window.addEventListener('DOMContentLoaded', async () => {
+    // Sponsored ad slot: fetch the current ad for a given placement (if
+    // any), render it, and record one impression - both server-side (a
+    // DB counter in app/ads_routes.py, for the admin dashboard) and as
+    // a GA4 custom event (gtag), so the same number is cross-checkable
+    // in Google Analytics too. The click itself isn't tracked via
+    // fetch/beacon - the link's href points at GET /ads/{id}/click, a
+    // real server redirect, so the click still counts even with JS
+    // disabled or a slow/failed beacon; the onclick handler only fires
+    // the GA event (fire-and-forget, doesn't block navigation).
+    // `prefix` matches this slot's element id prefix in the HTML (e.g.
+    // "adSlot" -> #adSlot, #adSlotTitle, ... ; "adSlotBottom" -> same
+    // pattern) - lets one function drive every placement on the page
+    // without copy-pasting this whole block per slot.
+    async function loadAdSlot(placement, prefix) {
       try {
-        const res = await fetch('/ads/current');
+        const res = await fetch('/ads/current?placement=' + encodeURIComponent(placement));
         if (!res.ok) return;
         const data = await res.json();
         const ad = data.ad;
         if (!ad) return;
 
-        document.getElementById('adSlotTitle').textContent = ad.title;
+        document.getElementById(prefix + 'Title').textContent = ad.title;
         if (ad.description) {
-          document.getElementById('adSlotDescription').textContent = ad.description;
+          document.getElementById(prefix + 'Description').textContent = ad.description;
         }
 
         // media_url (an upload) takes priority over image_url (the
@@ -2433,27 +2455,27 @@
         if (ad.media_url) {
           const isVideo = (ad.media_content_type || '').startsWith('video/');
           if (isVideo) {
-            const video = document.getElementById('adSlotVideo');
+            const video = document.getElementById(prefix + 'Video');
             video.src = ad.media_url;
             video.style.display = 'block';
           } else {
-            const img = document.getElementById('adSlotImage');
+            const img = document.getElementById(prefix + 'Image');
             img.src = ad.media_url;
             img.alt = ad.title;
             img.style.display = 'block';
           }
         } else if (ad.image_url) {
-          const img = document.getElementById('adSlotImage');
+          const img = document.getElementById(prefix + 'Image');
           img.src = ad.image_url;
           img.alt = ad.title;
           img.style.display = 'block';
         }
 
-        const link = document.getElementById('adSlotLink');
+        const link = document.getElementById(prefix + 'Link');
         link.href = '/ads/' + ad.id + '/click';
         link.addEventListener('click', () => {
           if (typeof gtag === 'function') {
-            gtag('event', 'ad_click', { ad_id: ad.id, ad_title: ad.title });
+            gtag('event', 'ad_click', { ad_id: ad.id, ad_title: ad.title, placement: placement });
           }
         });
 
@@ -2463,19 +2485,24 @@
         // still paying for impressions, so a permanent per-visitor
         // dismiss would undercount those on purpose; this is closer to
         // a "not right now" than an opt-out.
-        document.getElementById('adSlotCloseBtn').addEventListener('click', (e) => {
+        document.getElementById(prefix + 'CloseBtn').addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          document.getElementById('adSlot').style.display = 'none';
+          document.getElementById(prefix).style.display = 'none';
         });
 
-        document.getElementById('adSlot').style.display = 'block';
+        document.getElementById(prefix).style.display = 'block';
 
         fetch('/ads/' + ad.id + '/impression', { method: 'POST' }).catch(() => {});
         if (typeof gtag === 'function') {
-          gtag('event', 'ad_impression', { ad_id: ad.id, ad_title: ad.title });
+          gtag('event', 'ad_impression', { ad_id: ad.id, ad_title: ad.title, placement: placement });
         }
       } catch (e) { /* no ad configured, or fetch failed - fail silent, ad slot just stays hidden */ }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadAdSlot('landing_top', 'adSlot');
+      loadAdSlot('landing_bottom', 'adSlotBottom');
     });
 
     // Client-side fallback: load navbar.html dynamically if not pre-rendered server-side
