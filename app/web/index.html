@@ -2422,14 +2422,6 @@
         const ad = data.ad;
         if (!ad) return;
 
-        // Closing an ad hides it for the rest of this browser session
-        // (sessionStorage, per tab) - it isn't gone forever, since the
-        // advertiser is still paying for impressions; it just won't
-        // pester the same visitor again until their next visit/session.
-        let dismissed = false;
-        try { dismissed = sessionStorage.getItem('dismissed_ad_' + ad.id) === '1'; } catch (e) {}
-        if (dismissed) return;
-
         document.getElementById('adSlotTitle').textContent = ad.title;
         if (ad.description) {
           document.getElementById('adSlotDescription').textContent = ad.description;
@@ -2465,11 +2457,16 @@
           }
         });
 
+        // Closing just hides it for this page view - nothing is
+        // persisted (no localStorage/sessionStorage flag), so a
+        // refresh or a new visit shows the ad again. The advertiser is
+        // still paying for impressions, so a permanent per-visitor
+        // dismiss would undercount those on purpose; this is closer to
+        // a "not right now" than an opt-out.
         document.getElementById('adSlotCloseBtn').addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
           document.getElementById('adSlot').style.display = 'none';
-          try { sessionStorage.setItem('dismissed_ad_' + ad.id, '1'); } catch (err) {}
         });
 
         document.getElementById('adSlot').style.display = 'block';
