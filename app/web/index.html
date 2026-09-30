@@ -1523,6 +1523,20 @@
 
       </section>
 
+      <!-- Sponsored Ad Slot (hidden until /ads/current returns one) -->
+      <section id="adSlot" style="display:none; margin-bottom: 40px;">
+        <a id="adSlotLink" href="#" target="_blank" rel="noopener sponsored"
+          style="display:flex; align-items:center; gap:18px; background:#FFFFFF; border:1px solid var(--border-card); border-radius:var(--radius-35); padding:18px 26px; box-shadow:var(--shadow-sm); text-decoration:none; transition:all 0.18s ease;"
+          onmouseover="this.style.borderColor='var(--brand-green)'" onmouseout="this.style.borderColor='var(--border-card)'">
+          <img id="adSlotImage" src="" alt="" style="width:64px; height:64px; border-radius:12px; object-fit:cover; display:none; flex-shrink:0;" />
+          <div style="flex:1; min-width:0;">
+            <span style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim);">Sponsored</span>
+            <div id="adSlotTitle" style="font-size:0.98rem; font-weight:700; color:#111827; margin-top:2px;"></div>
+            <div id="adSlotDescription" style="font-size:0.84rem; color:var(--text-muted); margin-top:2px;"></div>
+          </div>
+        </a>
+      </section>
+
       <!-- Three Cards: What kind of links work? (Watery Transparent with Nude Color Filter, radius 35px) -->
       <section class="compat-section">
         <div class="compat-header">
@@ -2382,6 +2396,51 @@
           document.getElementById('mcpForm').requestSubmit();
         }, 300);
       }
+    });
+
+    // Sponsored ad slot: fetch the current ad (if any), render it, and
+    // record one impression - both server-side (a DB counter in
+    // app/ads_routes.py, for the admin dashboard) and as a GA4 custom
+    // event (gtag), so the same number is cross-checkable in Google
+    // Analytics too. The click itself isn't tracked via fetch/beacon -
+    // the link's href points at GET /ads/{id}/click, a real server
+    // redirect, so the click still counts even with JS disabled or a
+    // slow/failed beacon; the onclick handler only fires the GA event
+    // (fire-and-forget, doesn't block navigation).
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch('/ads/current');
+        if (!res.ok) return;
+        const data = await res.json();
+        const ad = data.ad;
+        if (!ad) return;
+
+        document.getElementById('adSlotTitle').textContent = ad.title;
+        if (ad.description) {
+          document.getElementById('adSlotDescription').textContent = ad.description;
+        }
+        if (ad.image_url) {
+          const img = document.getElementById('adSlotImage');
+          img.src = ad.image_url;
+          img.alt = ad.title;
+          img.style.display = 'block';
+        }
+
+        const link = document.getElementById('adSlotLink');
+        link.href = '/ads/' + ad.id + '/click';
+        link.addEventListener('click', () => {
+          if (typeof gtag === 'function') {
+            gtag('event', 'ad_click', { ad_id: ad.id, ad_title: ad.title });
+          }
+        });
+
+        document.getElementById('adSlot').style.display = 'block';
+
+        fetch('/ads/' + ad.id + '/impression', { method: 'POST' }).catch(() => {});
+        if (typeof gtag === 'function') {
+          gtag('event', 'ad_impression', { ad_id: ad.id, ad_title: ad.title });
+        }
+      } catch (e) { /* no ad configured, or fetch failed - fail silent, ad slot just stays hidden */ }
     });
 
     // Client-side fallback: load navbar.html dynamically if not pre-rendered server-side

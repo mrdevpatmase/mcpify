@@ -35,6 +35,7 @@ from app.oauth import fetch_client_credentials_token, exchange_authorization_cod
 from app.rate_limit import limiter
 from app.auth import get_current_user
 from app.auth_routes import router as auth_router
+from app.ads_routes import router as ads_router
 from app.db import init_db
 from app.models import User
 
@@ -923,6 +924,7 @@ async def proxy_mcp_msg_4(proxy_id: str, payload: Dict[str, Any] = Body(...), se
 # 3. Include REST routes (/analyze, /generate, /guide)
 app.include_router(mcp_router)
 app.include_router(auth_router)
+app.include_router(ads_router)
 
 # 4. Expose all FastAPI /api/ & REST endpoints as MCP tools via FastApiMCP at /mcp-server
 fastapi_mcp = FastApiMCP(app, name="DataHub Talk to Data")
@@ -957,7 +959,8 @@ async def serve_frontend_catch_all(full_path: str):
         clean_path.startswith("redoc") or
         clean_path.startswith("admin") or
         clean_path.startswith("auth") or
-        clean_path.startswith("dashboard")
+        clean_path.startswith("dashboard") or
+        clean_path.startswith("ads")
     ):
         raise HTTPException(status_code=404, detail="Endpoint not found.")
 

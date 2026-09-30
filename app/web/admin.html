@@ -229,6 +229,78 @@
       font-size: 0.85rem;
       margin-top: 16px;
     }
+
+    .btn {
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 8px 16px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--font-desc);
+    }
+
+    .btn-primary { background: var(--brand-green); color: #fff; }
+    .btn-primary:hover { background: var(--brand-green-hover); }
+    .btn-outline { background: #fff; border: 1px solid var(--border-subtle); color: var(--text-main); }
+    .btn-outline:hover { border-color: var(--brand-green); color: var(--brand-green); }
+    .btn-danger { background: #fff; border: 1px solid #FCA5A5; color: var(--status-red); }
+    .btn-danger:hover { background: #FEF2F2; }
+    .btn-sm { padding: 5px 11px; font-size: 0.76rem; }
+
+    .ad-form {
+      display: none;
+      background: #FAFAFA;
+      border: 1px dashed var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      margin-top: 14px;
+    }
+
+    .ad-form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .ad-form label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #14352B;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .ad-form input, .ad-form textarea {
+      width: 100%;
+      border: 1.5px solid rgba(27, 77, 62, 0.2);
+      border-radius: var(--radius-md);
+      padding: 9px 12px;
+      font-size: 0.85rem;
+      font-family: var(--font-desc);
+      outline: none;
+    }
+
+    .ad-form input:focus, .ad-form textarea:focus { border-color: var(--brand-green); }
+
+    .badge-active {
+      background: rgba(22, 101, 52, 0.08);
+      color: var(--status-green);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+    }
+
+    .badge-inactive {
+      background: #F3F4F6;
+      color: var(--text-dim);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+    }
   </style>
 </head>
 
@@ -287,6 +359,14 @@
             <div class="stat-value" id="statGaSessions">—</div>
             <div class="stat-label">Sessions</div>
           </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statGaAdImpressions">—</div>
+            <div class="stat-label">Ad Impressions (GA)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statGaAdClicks">—</div>
+            <div class="stat-label">Ad Clicks (GA)</div>
+          </div>
         </div>
         <div class="panel" id="gaPagesPanel" style="display:none;">
           <table>
@@ -297,6 +377,44 @@
           </table>
         </div>
         <div class="ga-not-configured" id="gaNotConfigured" style="display:none;"></div>
+      </div>
+
+      <div class="section-title">
+        <span>Ads</span>
+        <button type="button" class="btn btn-primary btn-sm" onclick="toggleAdForm()">+ New Ad</button>
+      </div>
+      <div class="ad-form" id="adForm">
+        <div class="ad-form-row">
+          <div>
+            <label for="adTitle">Title</label>
+            <input type="text" id="adTitle" placeholder="Sponsor name / headline" />
+          </div>
+          <div>
+            <label for="adLinkUrl">Link URL</label>
+            <input type="text" id="adLinkUrl" placeholder="https://sponsor-site.com" />
+          </div>
+        </div>
+        <div class="ad-form-row">
+          <div>
+            <label for="adImageUrl">Image URL (optional)</label>
+            <input type="text" id="adImageUrl" placeholder="https://.../logo.png" />
+          </div>
+          <div>
+            <label for="adDescription">Description (optional)</label>
+            <input type="text" id="adDescription" placeholder="Short one-line description" />
+          </div>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="adSubmitBtn" onclick="submitAd()">Create Ad</button>
+        <span id="adFormMsg" style="font-size:0.8rem; color:var(--status-red); margin-left:10px;"></span>
+      </div>
+      <div class="panel">
+        <table>
+          <thead>
+            <tr><th>Title</th><th>Status</th><th>Impressions (DB)</th><th>Clicks (DB)</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="adsBody"></tbody>
+        </table>
+        <div class="empty-note" id="adsEmpty" style="display:none;">No ads yet.</div>
       </div>
 
       <div class="section-title">Recent Activity</div>
@@ -358,6 +476,8 @@
         }
       } catch (e) { /* non-fatal - key already verified via /metrics */ }
 
+      loadAds();
+
       try {
         var gaRes = await fetch('/admin/analytics?days=30', { headers: authHeaders() });
         if (gaRes.status === 503) {
@@ -370,6 +490,8 @@
           document.getElementById('statGaUsers').textContent = ga.active_users;
           document.getElementById('statGaViews').textContent = ga.page_views;
           document.getElementById('statGaSessions').textContent = ga.sessions;
+          document.getElementById('statGaAdImpressions').textContent = ga.ad_impressions_ga ?? 0;
+          document.getElementById('statGaAdClicks').textContent = ga.ad_clicks_ga ?? 0;
           if (ga.top_pages && ga.top_pages.length > 0) {
             var pagesBody = document.getElementById('gaPagesBody');
             pagesBody.innerHTML = '';
@@ -382,6 +504,93 @@
           }
         }
       } catch (e) { /* non-fatal */ }
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    function toggleAdForm() {
+      var form = document.getElementById('adForm');
+      form.style.display = form.style.display === 'block' ? 'none' : 'block';
+    }
+
+    async function loadAds() {
+      try {
+        var res = await fetch('/admin/ads', { headers: authHeaders() });
+        var data = await res.json();
+        var ads = data.ads || [];
+        var tbody = document.getElementById('adsBody');
+        tbody.innerHTML = '';
+        if (ads.length === 0) {
+          document.getElementById('adsEmpty').style.display = 'block';
+          return;
+        }
+        document.getElementById('adsEmpty').style.display = 'none';
+        ads.forEach(function (ad) {
+          var tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td>' + escapeHtml(ad.title) + '</td>' +
+            '<td><span class="' + (ad.active ? 'badge-active' : 'badge-inactive') + '">' + (ad.active ? 'Active' : 'Inactive') + '</span></td>' +
+            '<td>' + ad.impressions + '</td>' +
+            '<td>' + ad.clicks + '</td>' +
+            '<td>' +
+              '<button type="button" class="btn btn-outline btn-sm" onclick="toggleAdActive(\'' + ad.id + '\', ' + ad.active + ')">' + (ad.active ? 'Deactivate' : 'Activate') + '</button> ' +
+              '<button type="button" class="btn btn-danger btn-sm" onclick="deleteAd(\'' + ad.id + '\')">Delete</button>' +
+            '</td>';
+          tbody.appendChild(tr);
+        });
+      } catch (e) { /* non-fatal */ }
+    }
+
+    async function submitAd() {
+      var msg = document.getElementById('adFormMsg');
+      msg.textContent = '';
+      var title = document.getElementById('adTitle').value.trim();
+      var linkUrl = document.getElementById('adLinkUrl').value.trim();
+      if (!title || !linkUrl) {
+        msg.textContent = 'Title and Link URL are required.';
+        return;
+      }
+      try {
+        var res = await fetch('/admin/ads', {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+          body: JSON.stringify({
+            title: title,
+            link_url: linkUrl,
+            image_url: document.getElementById('adImageUrl').value.trim() || null,
+            description: document.getElementById('adDescription').value.trim() || null
+          })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to create ad.');
+        document.getElementById('adTitle').value = '';
+        document.getElementById('adLinkUrl').value = '';
+        document.getElementById('adImageUrl').value = '';
+        document.getElementById('adDescription').value = '';
+        document.getElementById('adForm').style.display = 'none';
+        loadAds();
+      } catch (err) {
+        msg.textContent = err.message;
+      }
+    }
+
+    async function toggleAdActive(id, currentlyActive) {
+      await fetch('/admin/ads/' + id, {
+        method: 'PATCH',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+        body: JSON.stringify({ active: !currentlyActive })
+      });
+      loadAds();
+    }
+
+    async function deleteAd(id) {
+      if (!confirm('Delete this ad?')) return;
+      await fetch('/admin/ads/' + id, { method: 'DELETE', headers: authHeaders() });
+      loadAds();
     }
 
     function showKeyError() {

@@ -72,7 +72,9 @@ def get_ga_summary(days: int = 30) -> Dict[str, Any]:
     (asyncio.to_thread) rather than call it directly from an async
     handler.
     """
-    from google.analytics.data_v1beta.types import DateRange, Dimension, Metric, OrderBy, RunReportRequest
+    from google.analytics.data_v1beta.types import (
+        DateRange, Dimension, Filter, FilterExpression, Metric, OrderBy, RunReportRequest,
+    )
 
     property_id = os.getenv("GA_PROPERTY_ID")
     if not property_id:
@@ -108,10 +110,35 @@ def get_ga_summary(days: int = 30) -> Dict[str, Any]:
         for row in pages_response.rows
     ]
 
+    # Ad impression/click counts as gtag custom events (fired client-side
+    # in index.html) - separate from the DB counters app/ads_routes.py
+    # tracks server-side. Both are shown together in the admin dashboard:
+    # GA's count is deduped/bot-filtered by Google's own pipeline, the DB
+    # counter is a simpler raw count that updates immediately (GA data
+    # can lag by up to a day or so for processing) - neither replaces
+    # the other.
+    events_response = client.run_report(
+        RunReportRequest(
+            property=f"properties/{property_id}",
+            date_ranges=[date_range],
+            dimensions=[Dimension(name="eventName")],
+            metrics=[Metric(name="eventCount")],
+            dimension_filter=FilterExpression(
+                filter=Filter(
+                    field_name="eventName",
+                    in_list_filter=Filter.InListFilter(values=["ad_impression", "ad_click"]),
+                )
+            ),
+        )
+    )
+    ad_events = {row.dimension_values[0].value: int(row.metric_values[0].value) for row in events_response.rows}
+
     return {
         "period_days": days,
         "active_users": active_users,
         "page_views": page_views,
         "sessions": sessions,
         "top_pages": top_pages,
+        "ad_impressions_ga": ad_events.get("ad_impression", 0),
+        "ad_clicks_ga": ad_events.get("ad_click", 0),
     }
