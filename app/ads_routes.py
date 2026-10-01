@@ -14,11 +14,16 @@ from app.security import is_public_url, verify_admin_key
 router = APIRouter(tags=["Ads"])
 
 # Fixed set of slots this app actually renders an ad in - one page can
-# have more than one (index.html has landing_top and landing_bottom).
-# Adding a new location means adding both a name here and the matching
-# fetch('/ads/current?placement=...') call in that page's own HTML/JS;
-# this list is just what create/update validate against.
-AD_PLACEMENTS = ["landing_top", "landing_bottom", "login", "signup", "dashboard"]
+# have more than one (index.html has top_banner, landing_top, and
+# landing_bottom). Adding a new location means adding both a name here
+# and the matching fetch call in that page's own HTML/JS; this list is
+# just what create/update validate against.
+#
+# top_banner and landing_top are the two rotating placements (multiple
+# active ads cycle every 5s, looping) - see GET /ads/rotation. The rest
+# show a single ad (the most recently created active one) via the
+# existing GET /ads/current.
+AD_PLACEMENTS = ["top_banner", "landing_top", "landing_bottom", "login", "signup", "dashboard"]
 DEFAULT_PLACEMENT = "landing_top"
 
 
@@ -190,28 +195,53 @@ async def delete_ad(request: Request, ad_id: str, _admin: Optional[str] = Depend
 # Public: serve the current ad, track impressions/clicks
 # ---------------------------------------------------------
 
-@router.get("/ads/current", summary="Get the Current Active Ad")
-@limiter.limit("60/minute")
-async def get_current_ad(request: Request, placement: str = Query(DEFAULT_PLACEMENT)):
-    """Public, unauthenticated - this is what each page's own ad slot
-    calls (with its own ?placement=...) to decide what to render.
-    Picks the most recently created ad for that placement that's active
-    and within its date window (if one is set); {} if none."""
+async def _active_ads_for_placement(placement: str, order_desc: bool) -> list:
+    """Shared by /ads/current (most recent one) and /ads/rotation (all
+    of them) - active flag + optional start/end date window, both
+    checked in Python since SQLAlchemy's comparison against a
+    Python-side `now` for an optional nullable column is simpler this
+    way than building a NULL-aware SQL WHERE clause for it."""
     now = datetime.now(timezone.utc)
     session_factory = get_session_factory()
     async with session_factory() as db:
-        result = await db.execute(
-            select(Ad).where(Ad.active.is_(True), Ad.placement == placement).order_by(Ad.created_at.desc())
-        )
+        query = select(Ad).where(Ad.active.is_(True), Ad.placement == placement)
+        query = query.order_by(Ad.created_at.desc() if order_desc else Ad.created_at.asc())
+        result = await db.execute(query)
         ads = result.scalars().all()
 
+    valid = []
     for ad in ads:
         if ad.start_date and ad.start_date > now:
             continue
         if ad.end_date and ad.end_date < now:
             continue
-        return {"ad": _serialize(ad)}
+        valid.append(ad)
+    return valid
+
+
+@router.get("/ads/current", summary="Get the Current Active Ad")
+@limiter.limit("60/minute")
+async def get_current_ad(request: Request, placement: str = Query(DEFAULT_PLACEMENT)):
+    """Public, unauthenticated - this is what each single-ad page slot
+    calls (with its own ?placement=...) to decide what to render.
+    Picks the most recently created ad for that placement that's active
+    and within its date window (if one is set); {} if none."""
+    ads = await _active_ads_for_placement(placement, order_desc=True)
+    if ads:
+        return {"ad": _serialize(ads[0])}
     return {"ad": None}
+
+
+@router.get("/ads/rotation", summary="Get All Active Ads for a Rotating Placement")
+@limiter.limit("60/minute")
+async def get_ads_rotation(request: Request, placement: str = Query(DEFAULT_PLACEMENT)):
+    """Public, unauthenticated - used by the two rotating placements
+    (top_banner, landing_top): returns every active ad for that
+    placement, oldest first, so the frontend can cycle through all of
+    them (one every 5s, looping) instead of only ever showing the
+    single most-recent one like /ads/current does."""
+    ads = await _active_ads_for_placement(placement, order_desc=False)
+    return {"ads": [_serialize(a) for a in ads], "total": len(ads)}
 
 
 @router.post("/ads/{ad_id}/impression", summary="Record an Ad Impression")

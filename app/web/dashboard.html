@@ -463,8 +463,9 @@
             new_password: document.getElementById('newPassword').value
           })
         });
-        var data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Failed to update password.');
+        var data = null;
+        try { data = await res.json(); } catch (e) {}
+        if (!res.ok) throw new Error((data && data.detail) || 'Failed to update password (' + res.status + ').');
         msg.className = 'form-msg success';
         msg.textContent = 'Password updated.';
         msg.style.display = 'block';

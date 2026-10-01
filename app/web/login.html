@@ -309,9 +309,16 @@
             password: document.getElementById('password').value
           })
         });
-        var data = await res.json();
+        // The server doesn't always return JSON on failure - a 500 from
+        // an unhandled exception (e.g. the DB being unreachable/
+        // unconfigured) comes back as plain text ("Internal Server
+        // Error"), and res.json() throws its own confusing parse error
+        // on that instead of the real problem. Parse defensively so a
+        // non-JSON error still surfaces a sensible message.
+        var data = null;
+        try { data = await res.json(); } catch (e) {}
         if (!res.ok) {
-          throw new Error(data.detail || 'Login failed.');
+          throw new Error((data && data.detail) || 'Login failed (' + res.status + ').');
         }
         localStorage.setItem('mcpify_token', data.access_token);
         var nextUrl = new URLSearchParams(window.location.search).get('next');

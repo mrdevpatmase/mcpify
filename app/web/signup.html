@@ -335,9 +335,15 @@
             password: document.getElementById('password').value
           })
         });
-        var data = await res.json();
+        // See login.html's version of this same fix: the server doesn't
+        // always return JSON on failure (a 500 from an unhandled
+        // exception comes back as plain text), and res.json() throws
+        // its own confusing parse error on that instead of the real
+        // problem.
+        var data = null;
+        try { data = await res.json(); } catch (e) {}
         if (!res.ok) {
-          throw new Error(data.detail || 'Signup failed.');
+          throw new Error((data && data.detail) || 'Signup failed (' + res.status + ').');
         }
         localStorage.setItem('mcpify_token', data.access_token);
         var nextUrl = new URLSearchParams(window.location.search).get('next');

@@ -43,7 +43,17 @@ def test_decode_access_token_rejects_tampered_token():
     from app.auth import create_access_token, decode_access_token
 
     token = create_access_token("user-123")
-    tampered = token[:-1] + ("A" if token[-1] != "A" else "B")
+    # Flips a character in the middle of the signature segment, not the
+    # last character of the whole token: base64url has no padding, so a
+    # JWT's trailing character only encodes a couple of real bits - for
+    # some signatures, every value that trailing character could take
+    # decodes to the SAME bytes, making the "flip the last char" tamper
+    # a no-op roughly 1 in 4 runs (it depends on the signature's actual
+    # bytes, which differ every run since the payload includes the
+    # current timestamp) and failing this test nondeterministically.
+    # A middle character has no such ambiguity.
+    mid = len(token) // 2
+    tampered = token[:mid] + ("A" if token[mid] != "A" else "B") + token[mid + 1:]
     with pytest.raises(pyjwt.PyJWTError):
         decode_access_token(tampered)
 

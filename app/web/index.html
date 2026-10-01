@@ -1387,6 +1387,24 @@
 
 <body>
 
+  <!-- Sponsored Ad Slot - top banner, above the navbar. Rotating: if
+       multiple ads are active for this placement, each shows for 5s
+       before the next one, looping (see startAdRotation below). -->
+  <div id="adSlotTop" style="display:none; width:100%; background:linear-gradient(135deg, rgba(27,77,62,0.05), rgba(27,77,62,0.015)); border-bottom:1px solid var(--border-subtle);">
+    <div class="container" style="display:flex; align-items:center; justify-content:center; gap:10px; padding:9px 24px; position:relative;">
+      <a id="adSlotTopLink" href="#" target="_blank" rel="noopener sponsored"
+        style="display:flex; align-items:center; gap:10px; text-decoration:none; color:inherit; max-width:calc(100% - 36px); overflow:hidden;">
+        <span style="font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim); flex-shrink:0;">Ad</span>
+        <img id="adSlotTopImage" src="" alt="" style="width:20px; height:20px; border-radius:5px; object-fit:cover; display:none; flex-shrink:0;" />
+        <video id="adSlotTopVideo" muted loop autoplay playsinline
+          style="width:34px; height:20px; border-radius:5px; object-fit:cover; display:none; flex-shrink:0;"></video>
+        <span id="adSlotTopTitle" style="font-size:0.8rem; font-weight:600; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></span>
+      </a>
+      <button type="button" id="adSlotTopCloseBtn" aria-label="Close ad"
+        style="position:absolute; right:12px; top:50%; transform:translateY(-50%); width:18px; height:18px; border-radius:50%; border:none; background:rgba(0,0,0,0.06); color:var(--text-muted); font-size:0.72rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;">&times;</button>
+    </div>
+  </div>
+
   <!-- Separate Navbar Component (Rendered server-side or loaded via client fallback) -->
   <div id="navbar-container">
     <!-- NAVBAR_COMPONENT -->
@@ -2171,8 +2189,13 @@
         }
 
         if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.detail || 'Failed to analyze target URL');
+          // A 500 from an unhandled exception comes back as plain text
+          // ("Internal Server Error"), not JSON - parse defensively so
+          // that case still surfaces a sensible message instead of
+          // response.json()'s own confusing parse error.
+          let errDetail = null;
+          try { errDetail = (await response.json()).detail; } catch (e) {}
+          throw new Error(errDetail || 'Failed to analyze target URL (' + response.status + ').');
         }
 
         const data = await response.json();
@@ -2500,8 +2523,97 @@
       } catch (e) { /* no ad configured, or fetch failed - fail silent, ad slot just stays hidden */ }
     }
 
+    // Rotating ad slot: like loadAdSlot above, but for a placement that
+    // can hold MULTIPLE active ads - fetches all of them via
+    // GET /ads/rotation and cycles through, one every `intervalMs`,
+    // looping back to the first after the last (10 ads * 5s each = back
+    // to ad #1 at 50s). Only top_banner and landing_top use this; the
+    // other placements (landing_bottom, login, signup, dashboard) show
+    // a single ad via loadAdSlot - rotation is scoped to just these two
+    // per what was actually asked for, not applied everywhere.
+    async function startAdRotation(placement, prefix, intervalMs) {
+      try {
+        const res = await fetch('/ads/rotation?placement=' + encodeURIComponent(placement));
+        if (!res.ok) return;
+        const data = await res.json();
+        const ads = data.ads || [];
+        if (ads.length === 0) return;
+
+        const slot = document.getElementById(prefix);
+        let index = 0;
+        let timer = null;
+
+        function renderAd(ad) {
+          document.getElementById(prefix + 'Title').textContent = ad.title;
+          const descEl = document.getElementById(prefix + 'Description');
+          if (descEl) descEl.textContent = ad.description || '';
+
+          const imgEl = document.getElementById(prefix + 'Image');
+          const videoEl = document.getElementById(prefix + 'Video');
+          if (imgEl) imgEl.style.display = 'none';
+          if (videoEl) videoEl.style.display = 'none';
+
+          if (ad.media_url) {
+            const isVideo = (ad.media_content_type || '').startsWith('video/');
+            if (isVideo && videoEl) {
+              videoEl.src = ad.media_url;
+              videoEl.style.display = 'block';
+            } else if (imgEl) {
+              imgEl.src = ad.media_url;
+              imgEl.alt = ad.title;
+              imgEl.style.display = 'block';
+            }
+          } else if (ad.image_url && imgEl) {
+            imgEl.src = ad.image_url;
+            imgEl.alt = ad.title;
+            imgEl.style.display = 'block';
+          }
+
+          const link = document.getElementById(prefix + 'Link');
+          link.href = '/ads/' + ad.id + '/click';
+          // Reassigned (not addEventListener'd) on every render, since
+          // each ad in the rotation needs its own click target/payload
+          // and this avoids piling up one listener per ad over time.
+          link.onclick = () => {
+            if (typeof gtag === 'function') {
+              gtag('event', 'ad_click', { ad_id: ad.id, ad_title: ad.title, placement: placement });
+            }
+          };
+
+          // Each rotation into view is counted as its own impression -
+          // an ad that's up for its 5s turn was genuinely shown, same
+          // as a normal page-load impression elsewhere.
+          fetch('/ads/' + ad.id + '/impression', { method: 'POST' }).catch(() => {});
+          if (typeof gtag === 'function') {
+            gtag('event', 'ad_impression', { ad_id: ad.id, ad_title: ad.title, placement: placement });
+          }
+        }
+
+        const closeBtn = document.getElementById(prefix + 'CloseBtn');
+        if (closeBtn) {
+          closeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            slot.style.display = 'none';
+            if (timer) clearInterval(timer);
+          });
+        }
+
+        renderAd(ads[index]);
+        slot.style.display = 'block';
+
+        if (ads.length > 1) {
+          timer = setInterval(() => {
+            index = (index + 1) % ads.length;
+            renderAd(ads[index]);
+          }, intervalMs);
+        }
+      } catch (e) { /* no ads configured, or fetch failed - fail silent, slot stays hidden */ }
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
-      loadAdSlot('landing_top', 'adSlot');
+      startAdRotation('top_banner', 'adSlotTop', 5000);
+      startAdRotation('landing_top', 'adSlot', 5000);
       loadAdSlot('landing_bottom', 'adSlotBottom');
     });
 
