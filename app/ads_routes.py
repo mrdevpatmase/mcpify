@@ -17,14 +17,17 @@ router = APIRouter(tags=["Ads"])
 # (index.html) - no more per-page slots on login/signup/dashboard.
 # - top: floating popup overlapping the navbar, centered. Rotates
 #   through every active ad (GET /ads/rotation), 5s each, looping.
-# - bottom_left: floating widget fixed at the bottom-left corner.
-#   Also rotates, same as top.
+#   Persistent - no close button, keeps rotating for the whole page
+#   view regardless.
+# - bottom_right: floating widget fixed at the bottom-right corner.
+#   Same as top: rotates, persistent, no close button.
 # - center_modal: a big centered modal with a blocking backdrop - shown
 #   on page load, does NOT rotate (one ad, the most recent active one,
-#   via GET /ads/current), and can only be dismissed via its own close
-#   button (clicking the backdrop does nothing) - the point is the
-#   visitor has to consciously close it before using the site.
-AD_PLACEMENTS = ["top", "bottom_left", "center_modal"]
+#   via GET /ads/current), and CAN be dismissed via its own close
+#   button (clicking the backdrop does nothing) - the point of this one
+#   specifically is the visitor has to consciously close it before
+#   using the site, unlike top/bottom_right which never go away.
+AD_PLACEMENTS = ["top", "bottom_right", "center_modal"]
 DEFAULT_PLACEMENT = "top"
 
 
