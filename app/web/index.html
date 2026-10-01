@@ -2528,84 +2528,125 @@
     // of the 3 placements that rotate; center_modal (above) shows a
     // single ad since cycling the image while it's forcibly blocking
     // the page would be an odd experience to force on someone.
+    //
+    // Re-fetches the ad list every REFRESH_MS on top of the rotation
+    // timer, so a visitor who leaves this tab open sees changes made in
+    // the admin panel (a new ad added, one deactivated, etc.) without
+    // needing to reload - without this, the list fetched on page load
+    // was final for the rest of that page view, so "add a 2nd ad while
+    // someone's already looking at the page" never visibly started
+    // rotating for them.
     async function startAdRotation(placement, prefix, intervalMs) {
-      try {
-        const res = await fetch('/ads/rotation?placement=' + encodeURIComponent(placement));
-        if (!res.ok) return;
-        const data = await res.json();
-        const ads = data.ads || [];
-        if (ads.length === 0) return;
+      const REFRESH_MS = 30000;
+      const slot = document.getElementById(prefix);
+      let ads = [];
+      let index = 0;
+      let rotateTimer = null;
+      let closed = false;
 
-        const slot = document.getElementById(prefix);
-        let index = 0;
-        let timer = null;
-
-        function renderAd(ad) {
-          document.getElementById(prefix + 'Title').textContent = ad.title;
-          const descEl = document.getElementById(prefix + 'Description');
-          if (descEl) descEl.textContent = ad.description || '';
-
-          const imgEl = document.getElementById(prefix + 'Image');
-          const videoEl = document.getElementById(prefix + 'Video');
-          if (imgEl) imgEl.style.display = 'none';
-          if (videoEl) videoEl.style.display = 'none';
-
-          if (ad.media_url) {
-            const isVideo = (ad.media_content_type || '').startsWith('video/');
-            if (isVideo && videoEl) {
-              videoEl.src = ad.media_url;
-              videoEl.style.display = 'block';
-            } else if (imgEl) {
-              imgEl.src = ad.media_url;
-              imgEl.alt = ad.title;
-              imgEl.style.display = 'block';
-            }
-          } else if (ad.image_url && imgEl) {
-            imgEl.src = ad.image_url;
-            imgEl.alt = ad.title;
-            imgEl.style.display = 'block';
-          }
-
-          const link = document.getElementById(prefix + 'Link');
-          link.href = '/ads/' + ad.id + '/click';
-          // Reassigned (not addEventListener'd) on every render, since
-          // each ad in the rotation needs its own click target/payload
-          // and this avoids piling up one listener per ad over time.
-          link.onclick = () => {
-            if (typeof gtag === 'function') {
-              gtag('event', 'ad_click', { ad_id: ad.id, ad_title: ad.title, placement: placement });
-            }
-          };
-
-          // Each rotation into view is counted as its own impression -
-          // an ad that's up for its 5s turn was genuinely shown, same
-          // as a normal page-load impression elsewhere.
-          fetch('/ads/' + ad.id + '/impression', { method: 'POST' }).catch(() => {});
-          if (typeof gtag === 'function') {
-            gtag('event', 'ad_impression', { ad_id: ad.id, ad_title: ad.title, placement: placement });
-          }
+      async function fetchAds() {
+        try {
+          const res = await fetch('/ads/rotation?placement=' + encodeURIComponent(placement));
+          if (!res.ok) return;
+          const data = await res.json();
+          return data.ads || [];
+        } catch (e) {
+          return null;
         }
+      }
 
-        const closeBtn = document.getElementById(prefix + 'CloseBtn');
-        if (closeBtn) {
-          closeBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            slot.style.display = 'none';
-            if (timer) clearInterval(timer);
-          });
-        }
-
-        renderAd(ads[index]);
-        slot.style.display = 'block';
-
+      function scheduleRotation() {
+        if (rotateTimer) clearInterval(rotateTimer);
+        rotateTimer = null;
         if (ads.length > 1) {
-          timer = setInterval(() => {
+          rotateTimer = setInterval(() => {
             index = (index + 1) % ads.length;
             renderAd(ads[index]);
           }, intervalMs);
         }
-      } catch (e) { /* no ads configured, or fetch failed - fail silent, slot stays hidden */ }
+      }
+
+      function renderAd(ad) {
+        document.getElementById(prefix + 'Title').textContent = ad.title;
+        const descEl = document.getElementById(prefix + 'Description');
+        if (descEl) descEl.textContent = ad.description || '';
+
+        const imgEl = document.getElementById(prefix + 'Image');
+        const videoEl = document.getElementById(prefix + 'Video');
+        if (imgEl) imgEl.style.display = 'none';
+        if (videoEl) videoEl.style.display = 'none';
+
+        if (ad.media_url) {
+          const isVideo = (ad.media_content_type || '').startsWith('video/');
+          if (isVideo && videoEl) {
+            videoEl.src = ad.media_url;
+            videoEl.style.display = 'block';
+          } else if (imgEl) {
+            imgEl.src = ad.media_url;
+            imgEl.alt = ad.title;
+            imgEl.style.display = 'block';
+          }
+        } else if (ad.image_url && imgEl) {
+          imgEl.src = ad.image_url;
+          imgEl.alt = ad.title;
+          imgEl.style.display = 'block';
+        }
+
+        const link = document.getElementById(prefix + 'Link');
+        link.href = '/ads/' + ad.id + '/click';
+        // Reassigned (not addEventListener'd) on every render, since
+        // each ad in the rotation needs its own click target/payload
+        // and this avoids piling up one listener per ad over time.
+        link.onclick = () => {
+          if (typeof gtag === 'function') {
+            gtag('event', 'ad_click', { ad_id: ad.id, ad_title: ad.title, placement: placement });
+          }
+        };
+
+        // Each rotation into view is counted as its own impression -
+        // an ad that's up for its 5s turn was genuinely shown, same
+        // as a normal page-load impression elsewhere.
+        fetch('/ads/' + ad.id + '/impression', { method: 'POST' }).catch(() => {});
+        if (typeof gtag === 'function') {
+          gtag('event', 'ad_impression', { ad_id: ad.id, ad_title: ad.title, placement: placement });
+        }
+      }
+
+      const closeBtn = document.getElementById(prefix + 'CloseBtn');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          closed = true;
+          slot.style.display = 'none';
+          if (rotateTimer) clearInterval(rotateTimer);
+        });
+      }
+
+      async function refresh() {
+        if (closed) return;
+        const fetched = await fetchAds();
+        if (fetched === null) return; // fetch failed - keep showing whatever's already up rather than hiding it
+        const hadAds = ads.length > 0;
+        ads = fetched;
+        if (ads.length === 0) {
+          slot.style.display = 'none';
+          if (rotateTimer) clearInterval(rotateTimer);
+          rotateTimer = null;
+          return;
+        }
+        if (index >= ads.length) index = 0;
+        if (!hadAds) {
+          // First successful load (or recovering from an empty list) -
+          // render immediately instead of waiting for the next tick.
+          renderAd(ads[index]);
+          slot.style.display = 'block';
+        }
+        scheduleRotation();
+      }
+
+      await refresh();
+      setInterval(refresh, REFRESH_MS);
     }
 
     window.addEventListener('DOMContentLoaded', () => {

@@ -95,6 +95,23 @@ def _serialize(ad: Ad) -> dict:
 # Admin: create/list/update/delete ads
 # ---------------------------------------------------------
 
+def _parse_form_datetime(value: Optional[str]) -> Optional[datetime]:
+    """
+    Parses an HTML <input type="datetime-local"> value ("2026-10-01T14:30",
+    no timezone info - the browser gives local wall-clock time with no
+    offset). Treated as UTC directly rather than converted from the
+    admin's browser timezone - simpler and unambiguous (the admin panel
+    labels these fields "(UTC)"), at the cost of the admin having to
+    think in UTC rather than their own timezone.
+    """
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value).replace(tzinfo=timezone.utc)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid date/time: '{value}'.")
+
+
 @router.post("/admin/ads", summary="Create an Ad")
 @limiter.limit("20/minute")
 async def create_ad(
@@ -103,6 +120,8 @@ async def create_ad(
     link_url: str = Form(..., min_length=1, max_length=1000),
     description: Optional[str] = Form(None, max_length=2000),
     placement: str = Form(DEFAULT_PLACEMENT),
+    start_date: Optional[str] = Form(None),
+    end_date: Optional[str] = Form(None),
     media: Optional[UploadFile] = File(None, description="An image or a short (5-10s) video."),
     _admin: Optional[str] = Depends(verify_admin_key),
     db=Depends(get_db),
@@ -118,12 +137,18 @@ async def create_ad(
 
     placement = _validate_placement(placement)
     media_data, media_content_type = await _read_media(media)
+    parsed_start = _parse_form_datetime(start_date)
+    parsed_end = _parse_form_datetime(end_date)
+    if parsed_start and parsed_end and parsed_start >= parsed_end:
+        raise HTTPException(status_code=400, detail="Start date must be before end date.")
 
     ad = Ad(
         title=title,
         link_url=link_url,
         description=description,
         placement=placement,
+        start_date=parsed_start,
+        end_date=parsed_end,
         media_data=media_data,
         media_content_type=media_content_type,
     )
