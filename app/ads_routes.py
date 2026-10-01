@@ -13,18 +13,19 @@ from app.security import is_public_url, verify_admin_key
 
 router = APIRouter(tags=["Ads"])
 
-# Fixed set of slots this app actually renders an ad in - one page can
-# have more than one (index.html has top_banner, landing_top, and
-# landing_bottom). Adding a new location means adding both a name here
-# and the matching fetch call in that page's own HTML/JS; this list is
-# just what create/update validate against.
-#
-# top_banner and landing_top are the two rotating placements (multiple
-# active ads cycle every 5s, looping) - see GET /ads/rotation. The rest
-# show a single ad (the most recently created active one) via the
-# existing GET /ads/current.
-AD_PLACEMENTS = ["top_banner", "landing_top", "landing_bottom", "login", "signup", "dashboard"]
-DEFAULT_PLACEMENT = "landing_top"
+# Simplified down to exactly 3 locations, all on the landing page
+# (index.html) - no more per-page slots on login/signup/dashboard.
+# - top: floating popup overlapping the navbar, centered. Rotates
+#   through every active ad (GET /ads/rotation), 5s each, looping.
+# - bottom_left: floating widget fixed at the bottom-left corner.
+#   Also rotates, same as top.
+# - center_modal: a big centered modal with a blocking backdrop - shown
+#   on page load, does NOT rotate (one ad, the most recent active one,
+#   via GET /ads/current), and can only be dismissed via its own close
+#   button (clicking the backdrop does nothing) - the point is the
+#   visitor has to consciously close it before using the site.
+AD_PLACEMENTS = ["top", "bottom_left", "center_modal"]
+DEFAULT_PLACEMENT = "top"
 
 
 def _validate_placement(placement: str) -> str:
