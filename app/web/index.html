@@ -2547,10 +2547,17 @@
       async function fetchAds() {
         try {
           const res = await fetch('/ads/rotation?placement=' + encodeURIComponent(placement));
-          if (!res.ok) return;
+          if (!res.ok) {
+            console.error('[ads] GET /ads/rotation?placement=' + placement + ' -> ' + res.status);
+            return null; // was a bare `return` (undefined) before - didn't match refresh()'s
+                         // `=== null` check below, so a single non-2xx response left `ads`
+                         // set to `undefined` and crashed every retry forever after (reading
+                         // `.length` on undefined), with nothing visible in the UI to say why.
+          }
           const data = await res.json();
           return data.ads || [];
         } catch (e) {
+          console.error('[ads] fetch for placement ' + placement + ' failed:', e);
           return null;
         }
       }
@@ -2625,24 +2632,32 @@
 
       async function refresh() {
         if (closed) return;
-        const fetched = await fetchAds();
-        if (fetched === null) return; // fetch failed - keep showing whatever's already up rather than hiding it
-        const hadAds = ads.length > 0;
-        ads = fetched;
-        if (ads.length === 0) {
-          slot.style.display = 'none';
-          if (rotateTimer) clearInterval(rotateTimer);
-          rotateTimer = null;
-          return;
+        try {
+          const fetched = await fetchAds();
+          if (fetched === null) return; // fetch failed - keep showing whatever's already up, retry on the next tick
+          const hadAds = ads.length > 0;
+          ads = fetched;
+          if (ads.length === 0) {
+            slot.style.display = 'none';
+            if (rotateTimer) clearInterval(rotateTimer);
+            rotateTimer = null;
+            return;
+          }
+          if (index >= ads.length) index = 0;
+          if (!hadAds) {
+            // First successful load (or recovering from an empty list) -
+            // render immediately instead of waiting for the next tick.
+            renderAd(ads[index]);
+            slot.style.display = 'block';
+          }
+          scheduleRotation();
+        } catch (e) {
+          // Never let an unexpected error here corrupt `ads` or silently
+          // kill future retries - log it and try again on the next
+          // REFRESH_MS tick instead of leaving the widget stuck broken
+          // for the rest of this page view.
+          console.error('[ads] refresh for placement ' + placement + ' threw:', e);
         }
-        if (index >= ads.length) index = 0;
-        if (!hadAds) {
-          // First successful load (or recovering from an empty list) -
-          // render immediately instead of waiting for the next tick.
-          renderAd(ads[index]);
-          slot.style.display = 'block';
-        }
-        scheduleRotation();
       }
 
       await refresh();
