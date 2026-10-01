@@ -208,6 +208,29 @@ async def update_ad(
     return _serialize(ad)
 
 
+@router.post("/admin/ads/{ad_id}/media", summary="Replace an Ad's Uploaded Image/Video")
+@limiter.limit("20/minute")
+async def replace_ad_media(
+    request: Request,
+    ad_id: str,
+    media: UploadFile = File(..., description="An image or a short (5-10s) video."),
+    _admin: Optional[str] = Depends(verify_admin_key),
+    db=Depends(get_db),
+):
+    result = await db.execute(select(Ad).where(Ad.id == ad_id))
+    ad = result.scalar_one_or_none()
+    if not ad:
+        raise HTTPException(status_code=404, detail=f"Ad '{ad_id}' not found.")
+
+    media_data, media_content_type = await _read_media(media)
+    if media_data is None:
+        raise HTTPException(status_code=400, detail="No media file provided.")
+    ad.media_data = media_data
+    ad.media_content_type = media_content_type
+    await db.commit()
+    return _serialize(ad)
+
+
 @router.delete("/admin/ads/{ad_id}", summary="Delete an Ad")
 @limiter.limit("20/minute")
 async def delete_ad(request: Request, ad_id: str, _admin: Optional[str] = Depends(verify_admin_key), db=Depends(get_db)):

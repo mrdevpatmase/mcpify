@@ -405,7 +405,7 @@
             </select>
           </div>
           <div>
-            <label for="adMedia">Image or video (optional, 5-10s if video)</label>
+            <label for="adMedia">Image or video (optional, 5-10s if video - leave empty to keep current when editing)</label>
             <input type="file" id="adMedia" accept="image/*,video/*" />
           </div>
         </div>
@@ -426,6 +426,7 @@
           </div>
         </div>
         <button type="button" class="btn btn-primary btn-sm" id="adSubmitBtn" onclick="submitAd()">Create Ad</button>
+        <button type="button" class="btn btn-outline btn-sm" id="adCancelBtn" onclick="cancelAdEdit()" style="display:none;">Cancel</button>
         <span id="adFormMsg" style="font-size:0.8rem; color:var(--status-red); margin-left:10px;"></span>
       </div>
       <div class="panel">
@@ -533,9 +534,55 @@
       });
     }
 
+    var editingAdId = null;
+    var currentAds = [];
+
     function toggleAdForm() {
       var form = document.getElementById('adForm');
-      form.style.display = form.style.display === 'block' ? 'none' : 'block';
+      if (form.style.display === 'block') {
+        cancelAdEdit();
+      } else {
+        editingAdId = null;
+        document.getElementById('adSubmitBtn').textContent = 'Create Ad';
+        document.getElementById('adCancelBtn').style.display = 'none';
+        form.style.display = 'block';
+      }
+    }
+
+    function editAd(id) {
+      var ad = currentAds.find(function (a) { return a.id === id; });
+      if (!ad) return;
+      editingAdId = id;
+      document.getElementById('adTitle').value = ad.title || '';
+      document.getElementById('adLinkUrl').value = ad.link_url || '';
+      document.getElementById('adPlacement').value = ad.placement || 'top';
+      document.getElementById('adDescription').value = ad.description || '';
+      // ISO strings from the server ("2026-10-01T14:30:00+00:00") need
+      // trimming to the "YYYY-MM-DDTHH:MM" shape a datetime-local input
+      // accepts - they're already UTC, matching how this field is
+      // interpreted on save, so a plain slice is enough (no tz math).
+      document.getElementById('adStartDate').value = ad.start_date ? ad.start_date.slice(0, 16) : '';
+      document.getElementById('adEndDate').value = ad.end_date ? ad.end_date.slice(0, 16) : '';
+      document.getElementById('adMedia').value = '';
+      document.getElementById('adFormMsg').textContent = '';
+      document.getElementById('adSubmitBtn').textContent = 'Save Changes';
+      document.getElementById('adCancelBtn').style.display = 'inline-block';
+      document.getElementById('adForm').style.display = 'block';
+      document.getElementById('adForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function cancelAdEdit() {
+      editingAdId = null;
+      document.getElementById('adTitle').value = '';
+      document.getElementById('adLinkUrl').value = '';
+      document.getElementById('adMedia').value = '';
+      document.getElementById('adDescription').value = '';
+      document.getElementById('adStartDate').value = '';
+      document.getElementById('adEndDate').value = '';
+      document.getElementById('adFormMsg').textContent = '';
+      document.getElementById('adSubmitBtn').textContent = 'Create Ad';
+      document.getElementById('adCancelBtn').style.display = 'none';
+      document.getElementById('adForm').style.display = 'none';
     }
 
     async function loadAds() {
@@ -543,6 +590,7 @@
         var res = await fetch('/admin/ads', { headers: authHeaders() });
         var data = await res.json();
         var ads = data.ads || [];
+        currentAds = ads;
         var tbody = document.getElementById('adsBody');
         tbody.innerHTML = '';
         if (ads.length === 0) {
@@ -569,6 +617,7 @@
             '<td>' + ad.clicks + '</td>' +
             '<td>' + ctr + '</td>' +
             '<td>' +
+              '<button type="button" class="btn btn-outline btn-sm" onclick="editAd(\'' + ad.id + '\')">Edit</button> ' +
               '<button type="button" class="btn btn-outline btn-sm" onclick="toggleAdActive(\'' + ad.id + '\', ' + ad.active + ')">' + (ad.active ? 'Deactivate' : 'Activate') + '</button> ' +
               '<button type="button" class="btn btn-danger btn-sm" onclick="deleteAd(\'' + ad.id + '\')">Delete</button>' +
             '</td>';
@@ -594,38 +643,72 @@
         msg.textContent = 'Title and Link URL are required.';
         return;
       }
-      try {
-        // multipart/form-data, not JSON - lets this carry the file
-        // upload. Don't set Content-Type manually: fetch needs to
-        // generate it itself (with the multipart boundary) from the
-        // FormData body.
-        var formData = new FormData();
-        formData.append('title', title);
-        formData.append('link_url', linkUrl);
-        formData.append('placement', document.getElementById('adPlacement').value);
-        var description = document.getElementById('adDescription').value.trim();
-        if (description) formData.append('description', description);
-        var startDate = document.getElementById('adStartDate').value;
-        if (startDate) formData.append('start_date', startDate);
-        var endDate = document.getElementById('adEndDate').value;
-        if (endDate) formData.append('end_date', endDate);
-        var mediaFile = document.getElementById('adMedia').files[0];
-        if (mediaFile) formData.append('media', mediaFile);
+      var placement = document.getElementById('adPlacement').value;
+      var description = document.getElementById('adDescription').value.trim();
+      var startDate = document.getElementById('adStartDate').value;
+      var endDate = document.getElementById('adEndDate').value;
+      var mediaFile = document.getElementById('adMedia').files[0];
 
-        var res = await fetch('/admin/ads', {
-          method: 'POST',
-          headers: authHeaders(),
-          body: formData
-        });
-        var data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Failed to create ad.');
-        document.getElementById('adTitle').value = '';
-        document.getElementById('adLinkUrl').value = '';
-        document.getElementById('adMedia').value = '';
-        document.getElementById('adDescription').value = '';
-        document.getElementById('adStartDate').value = '';
-        document.getElementById('adEndDate').value = '';
-        document.getElementById('adForm').style.display = 'none';
+      try {
+        if (editingAdId) {
+          // Edit mode: text fields go as JSON (the existing PATCH
+          // endpoint), since it can't carry a file. If a new media file
+          // was picked, it's uploaded separately right after - leaving
+          // it empty keeps whatever media the ad already has.
+          var patchRes = await fetch('/admin/ads/' + editingAdId, {
+            method: 'PATCH',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+            body: JSON.stringify({
+              title: title,
+              link_url: linkUrl,
+              placement: placement,
+              description: description || null,
+              // Appending "Z" marks these as UTC, same as how the
+              // create form's plain datetime-local value is treated -
+              // keeps edit and create reading the same wall-clock value
+              // the same way.
+              start_date: startDate ? startDate + 'Z' : null,
+              end_date: endDate ? endDate + 'Z' : null
+            })
+          });
+          var patchData = await patchRes.json();
+          if (!patchRes.ok) throw new Error(patchData.detail || 'Failed to update ad.');
+
+          if (mediaFile) {
+            var mediaForm = new FormData();
+            mediaForm.append('media', mediaFile);
+            var mediaRes = await fetch('/admin/ads/' + editingAdId + '/media', {
+              method: 'POST',
+              headers: authHeaders(),
+              body: mediaForm
+            });
+            var mediaData = await mediaRes.json();
+            if (!mediaRes.ok) throw new Error(mediaData.detail || 'Ad updated, but media upload failed.');
+          }
+        } else {
+          // multipart/form-data, not JSON - lets this carry the file
+          // upload. Don't set Content-Type manually: fetch needs to
+          // generate it itself (with the multipart boundary) from the
+          // FormData body.
+          var formData = new FormData();
+          formData.append('title', title);
+          formData.append('link_url', linkUrl);
+          formData.append('placement', placement);
+          if (description) formData.append('description', description);
+          if (startDate) formData.append('start_date', startDate);
+          if (endDate) formData.append('end_date', endDate);
+          if (mediaFile) formData.append('media', mediaFile);
+
+          var res = await fetch('/admin/ads', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: formData
+          });
+          var data = await res.json();
+          if (!res.ok) throw new Error(data.detail || 'Failed to create ad.');
+        }
+
+        cancelAdEdit();
         loadAds();
       } catch (err) {
         msg.textContent = err.message;
