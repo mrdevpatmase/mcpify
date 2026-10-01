@@ -2631,9 +2631,21 @@
         closeBtn.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          closed = true;
-          slot.style.display = 'none';
-          if (rotateTimer) clearInterval(rotateTimer);
+          if (ads.length > 1) {
+            // Closing just dismisses the current ad, not the whole
+            // widget - skip straight to the next one in rotation and
+            // restart the timer so it doesn't immediately rotate again
+            // right after.
+            index = (index + 1) % ads.length;
+            renderAd(ads[index]);
+            scheduleRotation();
+          } else {
+            // Nothing else to show in its place - hide for the rest of
+            // this page view (comes back on refresh, same as before).
+            closed = true;
+            slot.style.display = 'none';
+            if (rotateTimer) clearInterval(rotateTimer);
+          }
         });
       }
 
