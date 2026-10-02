@@ -229,6 +229,8 @@ async def mcp_tool_analyze_agent(url: str) -> Dict[str, Any]:
         return await run_analysis(url)
     except ValueError as e:
         return {"error": str(e)}
+    except Exception as e:
+        return {"error": f"Failed to analyze agent URL: {str(e)}"}
 
 
 @mcp.tool(name="generate_mcp_config", description="Generate ready-to-use MCP configuration JSON for Claude Desktop, Cursor, Windsurf, Cline, VS Code, and the Claude Code CLI.")
@@ -238,6 +240,8 @@ async def mcp_tool_generate_mcp_config(url: str) -> Dict[str, Any]:
         return await run_generation(url)
     except ValueError as e:
         return {"error": str(e)}
+    except Exception as e:
+        return {"error": f"Failed to generate MCP configs: {str(e)}"}
 
 
 @mcp.tool(name="get_integration_guide", description="Get step-by-step setup guides for Claude Desktop, Cursor, Windsurf, Cline, VS Code, Claude Code CLI, or generic Web/REST MCP clients.")
@@ -247,6 +251,8 @@ async def mcp_tool_get_integration_guide(url: str, platform: str = "claude_deskt
         return await run_guide(url, platform)
     except ValueError as e:
         return {"error": str(e)}
+    except Exception as e:
+        return {"error": f"Failed to get integration guide: {str(e)}"}
 
 
 # ---------------------------------------------------------
@@ -303,6 +309,7 @@ async def generate_mcp_config_endpoint(
 
 @router.post("/guide", operation_id="get_integration_guide", summary="Get MCP Integration Guide")
 @router.get("/guide", summary="Get MCP Integration Guide (GET)")
+@limiter.limit("10/minute")
 async def get_integration_guide_endpoint(
     request: Request,
     payload: Optional[IntegrationGuideRequest] = None,

@@ -13,20 +13,16 @@ from app.security import is_public_url, verify_admin_key
 
 router = APIRouter(tags=["Ads"])
 
-# Simplified down to exactly 3 locations, all on the landing page
-# (index.html) - no more per-page slots on login/signup/dashboard.
-# - top: floating popup overlapping the navbar, centered. Rotates
-#   through every active ad (GET /ads/rotation), 5s each, looping.
-#   Persistent - no close button, keeps rotating for the whole page
-#   view regardless.
-# - bottom_right: floating widget fixed at the bottom-right corner.
-#   Same as top: rotates, persistent, no close button.
+# Exactly 3 locations, all on the landing page (index.html):
+# - top / bottom_right: floating widgets that rotate through every
+#   active ad (GET /ads/rotation), 5s each, looping. Each has its own
+#   close button - closing hides it for the rest of the page view and
+#   the next ad takes over on the following 5s beat (see
+#   startAdRotation in index.html), rather than vanishing outright.
 # - center_modal: a big centered modal with a blocking backdrop - shown
 #   on page load, does NOT rotate (one ad, the most recent active one,
-#   via GET /ads/current), and CAN be dismissed via its own close
-#   button (clicking the backdrop does nothing) - the point of this one
-#   specifically is the visitor has to consciously close it before
-#   using the site, unlike top/bottom_right which never go away.
+#   via GET /ads/current), dismissed via its own close button
+#   (clicking the backdrop does nothing).
 AD_PLACEMENTS = ["top", "bottom_right", "center_modal"]
 DEFAULT_PLACEMENT = "top"
 

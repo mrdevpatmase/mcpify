@@ -1395,10 +1395,15 @@
        left and the nav links on the right stay visible/clickable.
        Rotating: if multiple ads are active for this placement, each
        shows for 5s before the next one, looping (see startAdRotation).
-       Deliberately has NO close button - this one is meant to keep
-       running for the whole page view, unlike center_modal below. -->
+       Has its own close button (adSlotTopCloseBtn); closing hides it and
+       the next ad takes over after the normal 5s beat rather than
+       instantly, so it's never a shortcut to skip straight to a specific
+       ad - closing only hides it for this page view, comes back on
+       refresh. -->
   <div id="adSlotTop" style="display:none; position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:1001; max-width:94vw;">
-    <div style="display:flex; align-items:center; gap:16px; background:#FFFFFF; border:1px solid var(--border-subtle); border-radius:var(--radius-35); padding:16px 24px; box-shadow:0 14px 36px -8px rgba(0,0,0,0.2), 0 4px 14px -2px rgba(0,0,0,0.1);">
+    <div style="position:relative; display:flex; align-items:center; gap:16px; background:#FFFFFF; border:1px solid var(--border-subtle); border-radius:var(--radius-35); padding:16px 24px; box-shadow:0 14px 36px -8px rgba(0,0,0,0.2), 0 4px 14px -2px rgba(0,0,0,0.1);">
+      <button type="button" id="adSlotTopCloseBtn" aria-label="Close ad"
+        style="position:absolute; top:-10px; right:-10px; width:24px; height:24px; border-radius:50%; border:1px solid var(--border-subtle); background:#FFFFFF; color:var(--text-muted); font-size:0.95rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px -2px rgba(0,0,0,0.25);">&times;</button>
       <a id="adSlotTopLink" href="#" target="_blank" rel="noopener sponsored"
         style="display:flex; align-items:center; gap:14px; text-decoration:none; color:inherit; max-width:min(72vw, 560px); overflow:hidden;">
         <span style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim); flex-shrink:0;">Ad</span>
@@ -1411,12 +1416,7 @@
   </div>
 
   <!-- Sponsored Ad Slot - bottom-right floating corner widget. Same
-       rotation behavior as the top one (startAdRotation), positioned/
-       styled as a smaller fixed corner card instead of a centered bar.
-       Has its own close button (adSlotBottomRightCloseBtn) - startAdRotation
-       already wires up any element with that id, same handling as the
-       center modal's close button; closing only hides it for this page
-       view (no persistence), so it comes back on refresh. -->
+       rotation and close behavior as the top one (startAdRotation). -->
   <div id="adSlotBottomRight" style="display:none; position:fixed; bottom:20px; right:20px; z-index:1001; max-width:320px;">
     <div style="position:relative; background:#FFFFFF; border:1px solid var(--border-subtle); border-radius:var(--radius-35); padding:16px; box-shadow:0 14px 36px -8px rgba(0,0,0,0.2), 0 4px 14px -2px rgba(0,0,0,0.1);">
       <button type="button" id="adSlotBottomRightCloseBtn" aria-label="Close ad"
@@ -2531,10 +2531,9 @@
     // of the 3 placements that rotate; center_modal (above) shows a
     // single ad since cycling the image while it's forcibly blocking
     // the page would be an odd experience to force on someone. Both
-    // top and bottom_right have no close button in their HTML (see
-    // their markup above) - they're meant to run continuously for the
-    // whole page view; the `if (closeBtn)` guard below simply finds
-    // nothing and never attaches a dismiss handler.
+    // top and bottom_right have their own close button in their HTML
+    // (see their markup above); closing one hides it and the next ad
+    // takes over on the following 5s beat instead of vanishing for good.
     //
     // Re-fetches the ad list every REFRESH_MS on top of the rotation
     // timer, so a visitor who leaves this tab open sees changes made in
@@ -2549,6 +2548,7 @@
       let ads = [];
       let index = 0;
       let rotateTimer = null;
+      let pendingTimer = null;
       let closed = false;
 
       async function fetchAds() {
@@ -2631,20 +2631,25 @@
         closeBtn.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
+          if (rotateTimer) clearInterval(rotateTimer);
+          if (pendingTimer) clearTimeout(pendingTimer);
+          slot.style.display = 'none';
           if (ads.length > 1) {
-            // Closing just dismisses the current ad, not the whole
-            // widget - skip straight to the next one in rotation and
-            // restart the timer so it doesn't immediately rotate again
-            // right after.
-            index = (index + 1) % ads.length;
-            renderAd(ads[index]);
-            scheduleRotation();
+            // Hides now; the next ad takes over after the normal 5s
+            // beat (intervalMs), same pace as automatic rotation -
+            // closing isn't a shortcut to jump straight to the next ad.
+            pendingTimer = setTimeout(() => {
+              pendingTimer = null;
+              if (closed) return;
+              index = (index + 1) % ads.length;
+              renderAd(ads[index]);
+              slot.style.display = 'block';
+              scheduleRotation();
+            }, intervalMs);
           } else {
             // Nothing else to show in its place - hide for the rest of
             // this page view (comes back on refresh, same as before).
             closed = true;
-            slot.style.display = 'none';
-            if (rotateTimer) clearInterval(rotateTimer);
           }
         });
       }
@@ -2657,12 +2662,17 @@
           const hadAds = ads.length > 0;
           ads = fetched;
           if (ads.length === 0) {
+            if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
             slot.style.display = 'none';
             if (rotateTimer) clearInterval(rotateTimer);
             rotateTimer = null;
             return;
           }
           if (index >= ads.length) index = 0;
+          // A close is currently mid-countdown to reveal the next ad -
+          // let that timer finish instead of fighting it with a fresh
+          // render/show here.
+          if (pendingTimer) return;
           if (!hadAds) {
             // First successful load (or recovering from an empty list) -
             // render immediately instead of waiting for the next tick.
