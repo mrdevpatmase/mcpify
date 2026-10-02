@@ -2515,12 +2515,19 @@
         // No click handler on the backdrop itself - clicking outside
         // the card must NOT close it, by design.
 
-        backdrop.style.display = 'flex';
-
-        fetch('/ads/' + ad.id + '/impression', { method: 'POST' }).catch(() => {});
-        if (typeof gtag === 'function') {
-          gtag('event', 'ad_impression', { ad_id: ad.id, ad_title: ad.title, placement: 'center_modal' });
-        }
+        // Revealed after a short delay instead of the instant the page
+        // finishes loading - same 5s beat as the rotating top/
+        // bottom_right slots, so a visitor gets a moment on the page
+        // before anything pops up. Impression/analytics are counted at
+        // reveal time, not fetch time, so they reflect what was
+        // actually seen.
+        setTimeout(() => {
+          backdrop.style.display = 'flex';
+          fetch('/ads/' + ad.id + '/impression', { method: 'POST' }).catch(() => {});
+          if (typeof gtag === 'function') {
+            gtag('event', 'ad_impression', { ad_id: ad.id, ad_title: ad.title, placement: 'center_modal' });
+          }
+        }, 5000);
       } catch (e) { /* no ad configured, or fetch failed - fail silent, modal just stays hidden */ }
     }
 
@@ -2675,9 +2682,17 @@
           if (pendingTimer) return;
           if (!hadAds) {
             // First successful load (or recovering from an empty list) -
-            // render immediately instead of waiting for the next tick.
-            renderAd(ads[index]);
-            slot.style.display = 'block';
+            // wait the same 5s beat as a normal rotation tick before
+            // the very first reveal, instead of popping up the instant
+            // the page finishes loading.
+            pendingTimer = setTimeout(() => {
+              pendingTimer = null;
+              if (closed) return;
+              renderAd(ads[index]);
+              slot.style.display = 'block';
+              scheduleRotation();
+            }, intervalMs);
+            return;
           }
           scheduleRotation();
         } catch (e) {
