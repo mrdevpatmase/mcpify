@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 
 from fastapi import FastAPI, Request, HTTPException, Query, Body, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, Field
 import httpx
 from dotenv import load_dotenv
@@ -331,6 +331,10 @@ def render_web_page(page: str = "index.html") -> HTMLResponse:
             navbar_content = nf.read()
         content = content.replace("<!-- NAVBAR_COMPONENT -->", navbar_content)
 
+    app_url = os.getenv("APP_URL", "").rstrip("/")
+    if app_url:
+        content = content.replace("https://inc42.site", app_url)
+
     return HTMLResponse(content)
 
 
@@ -346,7 +350,12 @@ async def sitemap_xml():
     web_dir = os.path.join(os.path.dirname(__file__), "app", "web")
     path = os.path.join(web_dir, "sitemap.xml")
     if os.path.exists(path):
-        return FileResponse(path, media_type="application/xml")
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+        app_url = os.getenv("APP_URL", "").rstrip("/")
+        if app_url:
+            content = content.replace("https://inc42.site", app_url)
+        return Response(content=content, media_type="application/xml")
     raise HTTPException(status_code=404, detail="sitemap.xml not found")
 
 
@@ -356,7 +365,12 @@ async def robots_txt():
     web_dir = os.path.join(os.path.dirname(__file__), "app", "web")
     path = os.path.join(web_dir, "robots.txt")
     if os.path.exists(path):
-        return FileResponse(path, media_type="text/plain")
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+        app_url = os.getenv("APP_URL", "").rstrip("/")
+        if app_url:
+            content = content.replace("https://inc42.site", app_url)
+        return Response(content=content, media_type="text/plain")
     raise HTTPException(status_code=404, detail="robots.txt not found")
 
 
