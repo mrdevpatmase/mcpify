@@ -407,6 +407,7 @@
           <div>
             <label for="adMedia">Image or video (optional, 5-10s if video - leave empty to keep current when editing)</label>
             <input type="file" id="adMedia" accept="image/*,video/*" />
+            <div id="adMediaPreview" style="margin-top:6px; display:none;"></div>
           </div>
         </div>
         <div class="ad-form-row">
@@ -546,6 +547,7 @@
         editingAdId = null;
         document.getElementById('adSubmitBtn').textContent = 'Create Ad';
         document.getElementById('adCancelBtn').style.display = 'none';
+        renderMediaPreview(null);
         form.style.display = 'block';
       }
     }
@@ -565,6 +567,7 @@
       document.getElementById('adStartDate').value = ad.start_date ? ad.start_date.slice(0, 16) : '';
       document.getElementById('adEndDate').value = ad.end_date ? ad.end_date.slice(0, 16) : '';
       document.getElementById('adMedia').value = '';
+      renderMediaPreview(ad.media_url || ad.image_url, ad.media_content_type);
       document.getElementById('adFormMsg').textContent = '';
       document.getElementById('adSubmitBtn').textContent = 'Save Changes';
       document.getElementById('adCancelBtn').style.display = 'inline-block';
@@ -577,6 +580,7 @@
       document.getElementById('adTitle').value = '';
       document.getElementById('adLinkUrl').value = '';
       document.getElementById('adMedia').value = '';
+      renderMediaPreview(null);
       document.getElementById('adDescription').value = '';
       document.getElementById('adStartDate').value = '';
       document.getElementById('adEndDate').value = '';
@@ -584,6 +588,28 @@
       document.getElementById('adSubmitBtn').textContent = 'Create Ad';
       document.getElementById('adCancelBtn').style.display = 'none';
       document.getElementById('adForm').style.display = 'none';
+    }
+
+    // Shows a small thumbnail of the ad's current image/video in the
+    // edit form - without this, there was no way to tell what media an
+    // ad already had before deciding whether to replace it. Sized with
+    // object-fit:contain (not cover) so the thumbnail itself hints at
+    // the media's real aspect ratio, same idea as the public-facing
+    // slots below.
+    function renderMediaPreview(mediaUrl, contentType) {
+      var el = document.getElementById('adMediaPreview');
+      if (!mediaUrl) {
+        el.innerHTML = '';
+        el.style.display = 'none';
+        return;
+      }
+      var isVideo = (contentType || '').startsWith('video/');
+      el.innerHTML =
+        (isVideo
+          ? '<video src="' + mediaUrl + '" muted controls style="max-width:180px; max-height:110px; border-radius:8px;"></video>'
+          : '<img src="' + mediaUrl + '" style="max-width:180px; max-height:110px; border-radius:8px; object-fit:contain;" />') +
+        '<div style="font-size:0.72rem; color:var(--text-dim); margin-top:4px;">Current media - pick a new file above to replace it.</div>';
+      el.style.display = 'block';
     }
 
     // Clones an existing ad's text fields into a fresh create (not an
@@ -602,6 +628,7 @@
       document.getElementById('adStartDate').value = '';
       document.getElementById('adEndDate').value = '';
       document.getElementById('adMedia').value = '';
+      renderMediaPreview(null);
       document.getElementById('adFormMsg').style.color = 'var(--text-dim)';
       document.getElementById('adFormMsg').textContent = (ad.media_url || ad.image_url)
         ? 'Image/video is not duplicated - choose a file for this copy.' : '';
