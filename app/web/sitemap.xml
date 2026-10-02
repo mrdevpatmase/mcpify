@@ -3,19 +3,19 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
   <url>
-    <loc>https://inc42.site/</loc>
+    <loc>https://inc42.si/</loc>
     <lastmod>2026-09-28</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.00</priority>
   </url>
   <url>
-    <loc>https://inc42.site/login</loc>
+    <loc>https://inc42.si/login</loc>
     <lastmod>2026-09-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.60</priority>
   </url>
   <url>
-    <loc>https://inc42.site/signup</loc>
+    <loc>https://inc42.si/signup</loc>
     <lastmod>2026-09-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>

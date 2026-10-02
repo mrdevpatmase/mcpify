@@ -333,7 +333,7 @@ def render_web_page(page: str = "index.html") -> HTMLResponse:
 
     app_url = os.getenv("APP_URL", "").rstrip("/")
     if app_url:
-        content = content.replace("https://inc42.site", app_url)
+        content = content.replace("https://inc42.si", app_url)
 
     return HTMLResponse(content)
 
@@ -354,7 +354,7 @@ async def sitemap_xml():
             content = f.read()
         app_url = os.getenv("APP_URL", "").rstrip("/")
         if app_url:
-            content = content.replace("https://inc42.site", app_url)
+            content = content.replace("https://inc42.si", app_url)
         return Response(content=content, media_type="application/xml")
     raise HTTPException(status_code=404, detail="sitemap.xml not found")
 
@@ -369,7 +369,7 @@ async def robots_txt():
             content = f.read()
         app_url = os.getenv("APP_URL", "").rstrip("/")
         if app_url:
-            content = content.replace("https://inc42.site", app_url)
+            content = content.replace("https://inc42.si", app_url)
         return Response(content=content, media_type="text/plain")
     raise HTTPException(status_code=404, detail="robots.txt not found")
 
