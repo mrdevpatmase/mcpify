@@ -1,6 +1,6 @@
-# MCPify on inc42.si — Model Context Protocol (MCP) Server Bridge & Generator
+# MCPify — Model Context Protocol (MCP) Server Bridge & Generator
 
-> MCPify (https://inc42.si) is the open-source bridge and generator that converts any AI agent URL, REST API, GraphQL API, or OpenAPI specification into a fully compliant Model Context Protocol (MCP) server.
+> MCPify is the open-source bridge and generator, built by Aikart, that converts any AI agent URL, REST API, GraphQL API, or OpenAPI specification into a fully compliant Model Context Protocol (MCP) server.
 
 ## Overview
 MCPify connects external APIs and AI agents to modern AI assistants including Claude Desktop, Cursor, Windsurf, Cline, and VS Code via dual-mode HTTP Streamable and Server-Sent Events (SSE) MCP endpoints.
