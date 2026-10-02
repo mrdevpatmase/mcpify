@@ -202,16 +202,22 @@ app.add_middleware(
 async def add_security_headers(request: Request, call_next):
     """
     Security Middleware: Adds essential HTTP security headers to protect against
-    Clickjacking, MIME-sniffing, XSS, and unencrypted transport.
+    Clickjacking, MIME-sniffing, XSS, and unencrypted transport. Automatically
+    redirects unencrypted HTTP requests to HTTPS.
     """
+    proto = request.headers.get("x-forwarded-proto", "")
+    if proto == "http":
+        url = request.url.replace(scheme="https")
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=str(url), status_code=301)
+
     response = await call_next(request)
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-    if request.url.scheme == "https":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 
