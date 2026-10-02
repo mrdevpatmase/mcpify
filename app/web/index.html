@@ -668,6 +668,16 @@
       gap: 20px;
     }
 
+    /* .nude-card defaults to justify-content:space-between, meant for
+       cards with a header and a CTA pinned to the bottom. FAQ cards
+       just have a heading + paragraph, so without this override a
+       short answer next to a tall sibling (CSS grid stretches row
+       height to the tallest card) gets shoved down to the bottom with
+       a large empty gap under its heading. */
+    .faq-grid .nude-card {
+      justify-content: flex-start;
+    }
+
     @media (max-width: 920px) {
       .compat-grid {
         grid-template-columns: 1fr;
@@ -1981,7 +1991,7 @@
         <div class="compat-header">
           <h2 class="compat-title" style="font-size: 2rem;">Model Context Protocol (MCP) & MCPify Guide</h2>
           <p class="compat-subtitle">
-            Everything you need to know about connecting AI agents, REST APIs, and OpenAPI specs to Claude Desktop, Cursor, and Windsurf using MCPify by <a href="https://aikart.co" target="_blank" rel="noopener noreferrer" style="color: var(--brand-green); font-weight: 600;">Aikart.co</a>.
+            How MCPify connects AI agents and REST APIs to Claude Desktop, Cursor, Windsurf, and more — by <a href="https://aikart.co" target="_blank" rel="noopener noreferrer" style="color: var(--brand-green); font-weight: 600;">Aikart.co</a>.
           </p>
         </div>
 
@@ -1989,42 +1999,42 @@
           <article class="nude-card" style="background: rgba(243, 244, 246, 0.65); padding: 24px; border-radius: 24px; border: 1px solid var(--border-subtle);">
             <h3 style="font-size: 1.05rem; font-weight: 700; color: #111827; margin-bottom: 8px;">What is MCPify?</h3>
             <p style="font-size: 0.88rem; color: #4B5563; line-height: 1.6;">
-              <strong>MCPify</strong> is an open-source bridge and generator hosted at <a href="https://mcpify.aikart.co/" style="color: var(--brand-green); font-weight: 600;">mcpify.aikart.co</a>. It converts any deployed AI agent, OpenAPI specification, GraphQL API, or standard REST API into a fully compliant Model Context Protocol (MCP) server.
+              <strong>MCPify</strong> (<a href="https://mcpify.aikart.co/" style="color: var(--brand-green); font-weight: 600;">mcpify.aikart.co</a>) converts any AI agent, REST API, GraphQL API, or OpenAPI spec into a ready-to-use Model Context Protocol (MCP) server.
             </p>
           </article>
 
           <article class="nude-card" style="background: rgba(243, 244, 246, 0.65); padding: 24px; border-radius: 24px; border: 1px solid var(--border-subtle);">
             <h3 style="font-size: 1.05rem; font-weight: 700; color: #111827; margin-bottom: 8px;">What is Model Context Protocol (MCP)?</h3>
             <p style="font-size: 0.88rem; color: #4B5563; line-height: 1.6;">
-              <strong>Model Context Protocol (MCP)</strong> is an open standard developed by Anthropic that allows AI applications (such as Claude Desktop, Cursor, and Windsurf) to securely connect to external APIs, databases, and custom tools with standardized JSON-RPC protocols.
+              <strong>MCP</strong> is Anthropic's open standard for letting AI apps like Claude Desktop, Cursor, and Windsurf securely call external APIs and tools over a common JSON-RPC interface.
             </p>
           </article>
 
           <article class="nude-card" style="background: rgba(243, 244, 246, 0.65); padding: 24px; border-radius: 24px; border: 1px solid var(--border-subtle);">
             <h3 style="font-size: 1.05rem; font-weight: 700; color: #111827; margin-bottom: 8px;">How do I connect an MCP server to Claude Desktop?</h3>
             <p style="font-size: 0.88rem; color: #4B5563; line-height: 1.6;">
-              Simply paste your target API or agent URL into the MCPify generator, copy the generated JSON snippet, and paste it under the <code style="background: #E5E7EB; padding: 2px 6px; border-radius: 4px; font-family: monospace;">mcpServers</code> section of your <code style="background: #E5E7EB; padding: 2px 6px; border-radius: 4px; font-family: monospace;">claude_desktop_config.json</code> file.
+              Paste your agent/API URL into MCPify, copy the generated snippet, and add it to the <code style="background: #E5E7EB; padding: 2px 6px; border-radius: 4px; font-family: monospace;">mcpServers</code> section of <code style="background: #E5E7EB; padding: 2px 6px; border-radius: 4px; font-family: monospace;">claude_desktop_config.json</code>.
             </p>
           </article>
 
           <article class="nude-card" style="background: rgba(243, 244, 246, 0.65); padding: 24px; border-radius: 24px; border: 1px solid var(--border-subtle);">
             <h3 style="font-size: 1.05rem; font-weight: 700; color: #111827; margin-bottom: 8px;">How does MCPify handle REST APIs without native MCP?</h3>
             <p style="font-size: 0.88rem; color: #4B5563; line-height: 1.6;">
-              When an API lacks native MCP endpoints, MCPify automatically creates a dynamic <strong>MCP Proxy Server</strong>. It inspects OpenAPI specs or endpoints, converts API routes into callable MCP tools, and exposes both Server-Sent Events (SSE) and Streamable HTTP endpoints.
+              It builds a dynamic <strong>MCP Proxy Server</strong>: reads the OpenAPI spec or endpoints, turns each route into an MCP tool, and serves it over both SSE and Streamable HTTP.
             </p>
           </article>
 
           <article class="nude-card" style="background: rgba(243, 244, 246, 0.65); padding: 24px; border-radius: 24px; border: 1px solid var(--border-subtle);">
             <h3 style="font-size: 1.05rem; font-weight: 700; color: #111827; margin-bottom: 8px;">Which AI clients are supported?</h3>
             <p style="font-size: 0.88rem; color: #4B5563; line-height: 1.6;">
-              MCPify provides one-click configurations for <strong>Claude Desktop</strong>, <strong>Cursor IDE</strong>, <strong>Windsurf</strong>, <strong>Cline</strong>, <strong>VS Code</strong>, and <strong>Claude Code CLI</strong>.
+              One-click configs for <strong>Claude Desktop</strong>, <strong>Cursor</strong>, <strong>Windsurf</strong>, <strong>Cline</strong>, <strong>VS Code</strong>, and the <strong>Claude Code CLI</strong>.
             </p>
           </article>
 
           <article class="nude-card" style="background: rgba(243, 244, 246, 0.65); padding: 24px; border-radius: 24px; border: 1px solid var(--border-subtle);">
             <h3 style="font-size: 1.05rem; font-weight: 700; color: #111827; margin-bottom: 8px;">Is MCPify built by Aikart?</h3>
             <p style="font-size: 0.88rem; color: #4B5563; line-height: 1.6;">
-              Yes! MCPify is part of the <a href="https://aikart.co" target="_blank" rel="noopener noreferrer" style="color: var(--brand-green); font-weight: 600;">Aikart Agent Ecosystem</a> (aikart.co), building state-of-the-art autonomous agents, tool bridges, and agentic infrastructure.
+              Yes — it's part of the <a href="https://aikart.co" target="_blank" rel="noopener noreferrer" style="color: var(--brand-green); font-weight: 600;">Aikart Agent Ecosystem</a> (aikart.co).
             </p>
           </article>
         </div>
