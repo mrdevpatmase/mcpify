@@ -351,11 +351,11 @@ async def sitemap_xml():
     path = os.path.join(web_dir, "sitemap.xml")
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
-            content = f.read()
+            content = f.read().strip()
         app_url = os.getenv("APP_URL", "").rstrip("/")
         if app_url:
             content = content.replace("https://inc42.si", app_url)
-        return Response(content=content, media_type="application/xml")
+        return Response(content=content, media_type="application/xml; charset=utf-8")
     raise HTTPException(status_code=404, detail="sitemap.xml not found")
 
 
