@@ -374,6 +374,22 @@ async def robots_txt():
     raise HTTPException(status_code=404, detail="robots.txt not found")
 
 
+@app.get("/llms.txt", include_in_schema=False)
+@app.get("/.well-known/llms.txt", include_in_schema=False)
+async def llms_txt():
+    """Serves llms.txt for AI Search Engines & LLM crawlers (GEO standard)."""
+    web_dir = os.path.join(os.path.dirname(__file__), "app", "web")
+    path = os.path.join(web_dir, "llms.txt")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+        app_url = os.getenv("APP_URL", "").rstrip("/")
+        if app_url:
+            content = content.replace("https://inc42.si", app_url)
+        return Response(content=content, media_type="text/markdown; charset=utf-8")
+    raise HTTPException(status_code=404, detail="llms.txt not found")
+
+
 
 @app.get("/login", summary="Login Page", response_class=HTMLResponse, include_in_schema=False)
 async def login_page():

@@ -8,6 +8,8 @@ Allow: /signup
 Allow: /navbar.css
 Allow: /aikart-ai-mark.png
 Allow: /sitemap.xml
+Allow: /llms.txt
+Allow: /.well-known/llms.txt
 Disallow: /admin
 Disallow: /admin/
 Disallow: /proxy/

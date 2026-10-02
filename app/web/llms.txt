@@ -1,0 +1,31 @@
+# MCPify on inc42.si — Model Context Protocol (MCP) Server Bridge & Generator
+
+> MCPify (https://inc42.si) is the open-source bridge and generator that converts any AI agent URL, REST API, GraphQL API, or OpenAPI specification into a fully compliant Model Context Protocol (MCP) server.
+
+## Overview
+MCPify connects external APIs and AI agents to modern AI assistants including Claude Desktop, Cursor, Windsurf, Cline, and VS Code via dual-mode HTTP Streamable and Server-Sent Events (SSE) MCP endpoints.
+
+- **Primary Website**: https://inc42.si
+- **Repository**: https://github.com/mrdevpatmase/mcpify
+- **License**: MIT
+- **Key Features**:
+  - Auto-detection of AI Agent frameworks (FastAPI MCP, LangGraph, CrewAI, AutoGen)
+  - OpenAPI 3.0 / Swagger spec parser to MCP tool definitions
+  - GraphQL schema & mutation to MCP tool conversion
+  - Live proxy engine wrapping REST APIs into hosted SSE and HTTP MCP endpoints
+  - One-click configuration generators for Claude Desktop, Cursor, Windsurf, and VS Code
+
+## API & Endpoints
+- **Web App**: https://inc42.si/
+- **Login**: https://inc42.si/login
+- **Signup**: https://inc42.si/signup
+- **OpenAPI Docs**: https://inc42.si/docs
+- **Health Check**: https://inc42.si/health
+- **Sitemap**: https://inc42.si/sitemap.xml
+- **Robots**: https://inc42.si/robots.txt
+
+## How to Use MCPify
+1. Visit https://inc42.si
+2. Enter your target REST API endpoint, OpenAPI schema URL, or AI agent URL.
+3. Click "Generate MCP Config".
+4. Copy the generated JSON snippet directly into `claude_desktop_config.json` or Cursor MCP settings.

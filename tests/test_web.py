@@ -70,4 +70,14 @@ def test_robots_txt():
     assert "User-agent: *" in response.text
     assert "Sitemap: https://inc42.si/sitemap.xml" in response.text
 
+def test_llms_txt():
+    response = client.get("/llms.txt")
+    assert response.status_code == 200
+    assert "text/markdown" in response.headers["content-type"]
+    assert "https://inc42.si" in response.text
+
+    well_known = client.get("/.well-known/llms.txt")
+    assert well_known.status_code == 200
+    assert "https://inc42.si" in well_known.text
+
 
