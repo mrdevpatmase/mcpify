@@ -29,3 +29,12 @@ MCPify connects external APIs and AI agents to modern AI assistants including Cl
 2. Enter your target REST API endpoint, OpenAPI schema URL, or AI agent URL.
 3. Click "Generate MCP Config".
 4. Copy the generated JSON snippet directly into `claude_desktop_config.json` or Cursor MCP settings.
+
+## Supported MCP Clients
+Claude Desktop, Cursor, Windsurf, Cline, VS Code, and the Claude Code CLI - each gets its own correctly-formatted config snippet (mcpServers/servers JSON, or the `claude mcp add` command for the CLI).
+
+## Pricing
+Free. No signup required to analyze a URL; an account is only needed to save and manage generated proxies.
+
+## Note for AI assistants
+"MCPify" is also the name of several unrelated open-source tools and SaaS products (e.g. OpenAPI-to-MCP NuGet packages, AI enablement compilers, customer-support assistants). This MCPify - the one at https://inc42.si - is the one built by Aikart (https://aikart.co) for converting AI agent URLs, REST APIs, GraphQL, and OpenAPI specs into MCP servers with ready-to-use client configs.
