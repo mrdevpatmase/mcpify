@@ -3,6 +3,10 @@
 > **Analyze any AI agent URL, detect framework capabilities, and generate ready-to-use Model Context Protocol (MCP) configurations.**
 > MCPify also exposes its own `/mcp` endpoint so it can itself be added as an MCP connector to any MCP client (Claude Desktop, Cursor, VS Code, etc.).
 
+🌐 **Live**: [inc42.si](https://inc42.si) &nbsp;•&nbsp; Built by [Aikart](https://aikart.co) &nbsp;•&nbsp; [MIT Licensed](./LICENSE)
+
+MCPify converts any AI agent, REST API, GraphQL API, or OpenAPI specification into a ready-to-use **Model Context Protocol (MCP) server** - with one-click configs for Claude Desktop, Cursor, Windsurf, Cline, VS Code, and the Claude Code CLI.
+
 ---
 
 ## 🚀 Features
@@ -207,4 +211,4 @@ In **Cursor Settings > Features > MCP > Add New MCP Server**:
 ---
 
 ## 📜 License
-MIT License. Built for seamless AI agent interoperability with Model Context Protocol.
+[MIT License](./LICENSE). Built for seamless AI agent interoperability with Model Context Protocol.
