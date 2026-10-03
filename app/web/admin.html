@@ -527,6 +527,17 @@
             });
             document.getElementById('gaPagesPanel').style.display = 'block';
           }
+        } else {
+          // Anything other than 503 (not configured) or success - e.g. a
+          // 502 from expired/invalid GA credentials or a bad property ID -
+          // was previously silently ignored here, leaving the stat tiles
+          // stuck on "—" forever with no indication why. Surface it.
+          var gaErr = null;
+          try { gaErr = await gaRes.json(); } catch (e) {}
+          document.getElementById('gaNotConfigured').style.display = 'block';
+          document.getElementById('gaNotConfigured').textContent =
+            'Failed to load Google Analytics data (' + gaRes.status + '): ' + ((gaErr && gaErr.detail) || 'unknown error');
+          document.querySelector('#gaStats .stat-grid').style.display = 'none';
         }
       } catch (e) { /* non-fatal */ }
     }
