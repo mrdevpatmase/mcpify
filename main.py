@@ -36,6 +36,7 @@ from app.rate_limit import limiter
 from app.auth import get_current_user
 from app.auth_routes import router as auth_router
 from app.ads_routes import router as ads_router
+from app.waitlist_routes import router as waitlist_router
 from app.db import init_db
 from app.models import User
 
@@ -417,6 +418,11 @@ async def login_page():
 @app.get("/signup", summary="Signup Page", response_class=HTMLResponse, include_in_schema=False)
 async def signup_page():
     return render_web_page("signup.html")
+
+
+@app.get("/pricing", summary="Pricing Page", response_class=HTMLResponse, include_in_schema=False)
+async def pricing_page():
+    return render_web_page("pricing.html")
 
 
 @app.get("/dashboard", summary="My Dashboard Page", response_class=HTMLResponse, include_in_schema=False)
@@ -973,6 +979,7 @@ async def proxy_mcp_msg_4(proxy_id: str, payload: Dict[str, Any] = Body(...), se
 app.include_router(mcp_router)
 app.include_router(auth_router)
 app.include_router(ads_router)
+app.include_router(waitlist_router)
 
 # 4. Expose all FastAPI /api/ & REST endpoints as MCP tools via FastApiMCP at /mcp-server
 fastapi_mcp = FastApiMCP(app, name="DataHub Talk to Data")

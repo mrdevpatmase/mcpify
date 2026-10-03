@@ -12,6 +12,13 @@ def test_root_serves_html():
     assert "MCPify" in response.text
     assert "MCP Server" in response.text
 
+def test_pricing_page_serves_html():
+    response = client.get("/pricing")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "Pro" in response.text
+    assert "Enterprise" in response.text
+
 def test_health_check():
     response = client.get("/health")
     assert response.status_code == 200

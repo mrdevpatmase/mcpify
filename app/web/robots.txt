@@ -5,6 +5,7 @@ User-agent: *
 Allow: /
 Allow: /login
 Allow: /signup
+Allow: /pricing
 Allow: /navbar.css
 Allow: /aikart-ai-mark.png
 Allow: /sitemap.xml

@@ -19,6 +19,7 @@ MCPify connects external APIs and AI agents to modern AI assistants including Cl
 - **Web App**: https://inc42.si/
 - **Login**: https://inc42.si/login
 - **Signup**: https://inc42.si/signup
+- **Pricing**: https://inc42.si/pricing
 - **OpenAPI Docs**: https://inc42.si/docs
 - **Health Check**: https://inc42.si/health
 - **Sitemap**: https://inc42.si/sitemap.xml

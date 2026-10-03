@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Integer, LargeBinary, String, Text
+from sqlalchemy import Boolean, DateTime, Integer, LargeBinary, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -63,6 +63,27 @@ class Ad(Base):
     # row in the same statement, unlike first_name/last_name/media_*
     # above which had no sensible default to backfill with.
     placement: Mapped[str] = mapped_column(String(50), nullable=False, server_default="landing_top")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+
+
+class WaitlistEntry(Base):
+    """
+    Email capture for the not-yet-launched paid tiers (/pricing). Brand
+    new table - create_all handles it, no ALTER TABLE needed the way
+    User/Ad's added columns did, since nothing has ever written to this
+    table before now. The (email, tier) unique constraint lets the same
+    person join the waitlist for both "pro" and "enterprise" without
+    that being a duplicate, while still rejecting a double-submit for
+    the same tier.
+    """
+    __tablename__ = "waitlist_entries"
+    __table_args__ = (UniqueConstraint("email", "tier", name="uq_waitlist_email_tier"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    tier: Mapped[str] = mapped_column(String(50), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-Q6FW5NTCLJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-Q6FW5NTCLJ');
+  </script>
+
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pricing — MCPify | Model Context Protocol Server Generator</title>
+  <meta name="description" content="MCPify is free to use. Pro and Enterprise/B2B tiers with higher limits, dedicated proxies, and self-hosted options are coming soon.">
+  <link rel="canonical" href="https://inc42.si/pricing">
+  <meta name="robots" content="index, follow">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Red+Hat+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="/navbar.css?v=2">
+
+  <style>
+    :root {
+      --bg-canvas: #FFFFFF;
+      --brand-green: #1B4D3E;
+      --brand-green-hover: #13392E;
+      --font-title: 'Red Hat Display', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-desc: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+      --text-main: #111827;
+      --text-muted: #4B5563;
+      --text-dim: #9CA3AF;
+      --border-subtle: #E5E7EB;
+      --radius-35: 35px;
+      --radius-md: 14px;
+      --radius-full: 9999px;
+      --status-red: #DC2626;
+      --status-green: #166534;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      font-family: var(--font-desc);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    h1, h2 { font-family: var(--font-title); }
+    a { color: inherit; text-decoration: none; }
+
+    main {
+      flex: 1;
+      padding: 60px 20px 80px;
+      max-width: 1080px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .pricing-header { text-align: center; margin-bottom: 48px; }
+
+    .pricing-title {
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      margin-bottom: 10px;
+    }
+
+    .pricing-subtitle {
+      font-size: 1rem;
+      color: var(--text-muted);
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .plans-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 900px) {
+      .plans-grid { grid-template-columns: 1fr; }
+    }
+
+    .plan-card {
+      background: linear-gradient(160deg, #FFFFFF 0%, #F7FAF8 100%);
+      border: 1.5px solid var(--border-subtle);
+      border-radius: var(--radius-35);
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .plan-card.featured {
+      border-color: rgba(27, 77, 62, 0.35);
+      box-shadow: 0 20px 48px -12px rgba(27, 77, 62, 0.12);
+    }
+
+    .plan-badge {
+      position: absolute;
+      top: -12px;
+      right: 24px;
+      background: var(--brand-green);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      padding: 5px 12px;
+      border-radius: var(--radius-full);
+    }
+
+    .plan-name {
+      font-size: 1.1rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .plan-tagline {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      min-height: 40px;
+    }
+
+    .plan-price {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .plan-price span {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-dim);
+    }
+
+    .plan-price-note {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-bottom: 24px;
+    }
+
+    .plan-features {
+      list-style: none;
+      margin: 0 0 28px;
+      flex: 1;
+    }
+
+    .plan-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      font-size: 0.88rem;
+      color: var(--text-main);
+      margin-bottom: 12px;
+    }
+
+    .plan-features li svg { flex-shrink: 0; margin-top: 2px; }
+
+    .btn-plan {
+      width: 100%;
+      border-radius: var(--radius-md);
+      padding: 13px 18px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      text-align: center;
+      display: block;
+    }
+
+    .btn-plan-primary {
+      background: var(--brand-green);
+      color: #fff;
+    }
+
+    .btn-plan-primary:hover { background: var(--brand-green-hover); }
+
+    .btn-plan-outline {
+      background: #fff;
+      color: var(--brand-green);
+      border: 1.5px solid var(--brand-green);
+    }
+
+    .waitlist-form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .waitlist-form input {
+      border: 1.5px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 11px 14px;
+      font-family: var(--font-desc);
+      font-size: 0.88rem;
+      outline: none;
+    }
+
+    .waitlist-form input:focus { border-color: var(--brand-green); }
+
+    .waitlist-msg {
+      font-size: 0.78rem;
+      min-height: 16px;
+      margin-top: 2px;
+    }
+
+    .waitlist-msg.success { color: var(--status-green); }
+    .waitlist-msg.error { color: var(--status-red); }
+
+    .faq-note {
+      text-align: center;
+      margin-top: 48px;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="navbar-container">
+    <!-- NAVBAR_COMPONENT -->
+  </div>
+
+  <main>
+    <div class="pricing-header">
+      <h1 class="pricing-title">Simple, usage-based pricing</h1>
+      <p class="pricing-subtitle">MCPify is free for individual use today. Pro and Enterprise tiers are on the way — join the waitlist to get notified and lock in early pricing.</p>
+    </div>
+
+    <div class="plans-grid">
+
+      <!-- Free -->
+      <div class="plan-card">
+        <div class="plan-name">Free</div>
+        <div class="plan-tagline">For individual developers trying out MCP.</div>
+        <div class="plan-price">$0<span>/forever</span></div>
+        <div class="plan-price-note">No credit card required.</div>
+        <ul class="plan-features">
+          <li>✅ Unlimited URL analysis</li>
+          <li>✅ Config generation for all supported clients</li>
+          <li>✅ Auto-proxy for non-native-MCP APIs</li>
+          <li>✅ Proxy uptime monitoring</li>
+          <li>✅ Standard rate limits</li>
+        </ul>
+        <a href="/signup" class="btn-plan btn-plan-outline">Get Started Free</a>
+      </div>
+
+      <!-- Pro -->
+      <div class="plan-card featured">
+        <span class="plan-badge">Coming Soon</span>
+        <div class="plan-name">Pro</div>
+        <div class="plan-tagline">For power users and small teams running proxies in production.</div>
+        <div class="plan-price">TBA<span>/month</span></div>
+        <div class="plan-price-note">Pricing finalized at launch.</div>
+        <ul class="plan-features">
+          <li>✅ Everything in Free</li>
+          <li>✅ Higher rate limits per proxy</li>
+          <li>✅ Proxies never expire from inactivity</li>
+          <li>✅ Priority support</li>
+          <li>✅ Usage analytics per proxy</li>
+        </ul>
+        <form class="waitlist-form" onsubmit="joinWaitlist(event, 'pro')">
+          <input type="email" placeholder="you@example.com" required>
+          <button type="submit" class="btn-plan btn-plan-primary">Join Waitlist</button>
+          <div class="waitlist-msg" id="msg-pro"></div>
+        </form>
+      </div>
+
+      <!-- Enterprise / B2B -->
+      <div class="plan-card">
+        <div class="plan-name">Enterprise</div>
+        <div class="plan-tagline">For companies connecting internal APIs to AI tools across their team.</div>
+        <div class="plan-price">Custom</div>
+        <div class="plan-price-note">Talk to us about your use case.</div>
+        <ul class="plan-features">
+          <li>✅ Everything in Pro</li>
+          <li>✅ Self-hosted / on-prem deployment</li>
+          <li>✅ Dedicated support &amp; onboarding</li>
+          <li>✅ Custom SLA</li>
+          <li>✅ Volume licensing</li>
+        </ul>
+        <form class="waitlist-form" onsubmit="joinWaitlist(event, 'enterprise')">
+          <input type="email" placeholder="you@company.com" required>
+          <button type="submit" class="btn-plan btn-plan-outline">Request Contact</button>
+          <div class="waitlist-msg" id="msg-enterprise"></div>
+        </form>
+      </div>
+
+    </div>
+
+    <p class="faq-note">Questions? Email <a href="mailto:devpatmase@aikart.co" style="color:var(--brand-green); font-weight:600;">devpatmase@aikart.co</a></p>
+  </main>
+
+  <script>
+    async function joinWaitlist(e, tier) {
+      e.preventDefault();
+      var form = e.target;
+      var email = form.querySelector('input[type="email"]').value;
+      var btn = form.querySelector('button');
+      var msgEl = document.getElementById('msg-' + tier);
+      var origBtnText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Joining...';
+      msgEl.textContent = '';
+      msgEl.className = 'waitlist-msg';
+
+      try {
+        var res = await fetch('/waitlist/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, tier: tier })
+        });
+        var data = null;
+        try { data = await res.json(); } catch (err) {}
+        if (!res.ok) throw new Error((data && data.detail) || 'Something went wrong.');
+        msgEl.textContent = (data && data.message) || "You're on the list!";
+        msgEl.className = 'waitlist-msg success';
+        form.querySelector('input').value = '';
+        if (typeof gtag === 'function') {
+          gtag('event', 'waitlist_join', { tier: tier });
+        }
+      } catch (err) {
+        msgEl.textContent = err.message;
+        msgEl.className = 'waitlist-msg error';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = origBtnText;
+      }
+    }
+  </script>
+
+  <!-- Client-side fallback: load navbar.html dynamically if not pre-rendered server-side -->
+  <script>
+    (function () {
+      var container = document.getElementById('navbar-container');
+      if (container && !container.querySelector('.navbar')) {
+        fetch('/navbar.html').then(function (r) { return r.text(); }).then(function (html) {
+          container.innerHTML = html;
+        }).catch(function () {});
+      }
+    })();
+  </script>
+
+</body>
+
+</html>
