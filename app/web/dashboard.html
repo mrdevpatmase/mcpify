@@ -160,6 +160,10 @@
 
     .badge-mcp { background: rgba(27, 77, 62, 0.08); color: var(--brand-green); }
     .badge-proxy { background: #F3F4F6; color: #4B5563; }
+    .badge-health-up { background: #F0FDF4; color: var(--status-green); }
+    .badge-health-down { background: #FEF2F2; color: var(--status-red); }
+    .badge-health-unknown { background: #F3F4F6; color: #9CA3AF; }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
     .proxy-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
@@ -354,6 +358,23 @@
           var badge = p.has_mcp
             ? '<span class="badge badge-mcp">Native MCP</span>'
             : '<span class="badge badge-proxy">Proxy</span>';
+          // last_ping_status comes from the APScheduler job that pings
+          // every proxy's target every 10 minutes (main.py) - the data
+          // already existed server-side, it just wasn't surfaced here
+          // before, so a target going down was invisible until a tool
+          // call actually failed.
+          var healthBadge;
+          if (p.last_ping_status == null) {
+            healthBadge = '<span class="badge badge-health-unknown"><span class="badge-dot"></span>Not checked yet</span>';
+          } else if (p.last_ping_status === -1) {
+            // -1 is the backend's sentinel for "couldn't connect at all"
+            // (timeout/DNS/connection error), not a real HTTP status.
+            healthBadge = '<span class="badge badge-health-down"><span class="badge-dot"></span>Target unreachable</span>';
+          } else if (p.last_ping_status < 400) {
+            healthBadge = '<span class="badge badge-health-up"><span class="badge-dot"></span>Healthy</span>';
+          } else {
+            healthBadge = '<span class="badge badge-health-down"><span class="badge-dot"></span>Target down (' + p.last_ping_status + ')</span>';
+          }
           return (
             '<div class="proxy-card" data-proxy-id="' + p.proxy_id + '">' +
               '<div class="proxy-card-top">' +
@@ -361,6 +382,7 @@
                   '<div class="proxy-url">' + escapeHtml(p.target_url) + '</div>' +
                   '<div class="proxy-meta">' +
                     badge +
+                    healthBadge +
                     '<span>Created ' + new Date(p.created_at).toLocaleDateString() + '</span>' +
                     '<span>Last used ' + new Date(p.last_used).toLocaleDateString() + '</span>' +
                   '</div>' +

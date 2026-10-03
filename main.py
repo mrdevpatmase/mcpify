@@ -81,6 +81,17 @@ async def ping_proxy_targets_job():
                 await proxy_manager.record_ping_status(proxy_id, resp.status_code)
                 logger.info("[APScheduler] Pinged proxy %s target (%s) - Status: %s", proxy_id, health_target, resp.status_code)
             except Exception as e:
+                # A connection error/timeout/DNS failure here IS the
+                # target being down - arguably the most common way that
+                # actually happens - but this previously only logged a
+                # warning and left last_ping_status untouched, so the
+                # dashboard kept showing whatever stale status (or
+                # "not checked yet") it had before, never "down", for
+                # exactly the case that most needs to show as down.
+                # -1 is a sentinel outside the real HTTP status range
+                # (100-599), so the dashboard can tell "couldn't even
+                # connect" apart from a real non-2xx response.
+                await proxy_manager.record_ping_status(proxy_id, -1)
                 logger.warning("[APScheduler] Error pinging proxy %s (%s): %s", proxy_id, health_target, e)
 
 
