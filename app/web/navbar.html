@@ -15,18 +15,6 @@
         </div>
         <a href="/health" target="_blank" class="nav-item-link">Health</a>
         <a href="/docs" target="_blank" class="nav-item-link">API docs</a>
-
-        <span id="navAuthLoggedOut" class="nav-auth-group">
-          <a href="/login" class="nav-item-link">Log in</a>
-          <a href="/signup" class="nav-signup-btn">Sign up</a>
-        </span>
-
-        <span id="navAuthLoggedIn" class="nav-auth-group" style="display:none;">
-          <a href="/dashboard" class="nav-item-link">Dashboard</a>
-          <span id="navUserEmail" class="nav-item-link nav-user-email"></span>
-          <a href="#" id="navLogoutBtn" class="nav-item-link">Log out</a>
-        </span>
-
         <a href="https://aikart.co" target="_blank" rel="noopener noreferrer" class="nav-aikart-link">
           <span>aikart.co</span>
           <span>↗</span>
@@ -35,49 +23,3 @@
     </div>
   </header>
 </div>
-
-<script>
-  (function () {
-    var token = null;
-    try { token = localStorage.getItem('mcpify_token'); } catch (e) {}
-
-    var loggedOutEl = document.getElementById('navAuthLoggedOut');
-    var loggedInEl = document.getElementById('navAuthLoggedIn');
-    var emailEl = document.getElementById('navUserEmail');
-    var logoutBtn = document.getElementById('navLogoutBtn');
-
-    function showLoggedOut() {
-      if (loggedOutEl) loggedOutEl.style.display = '';
-      if (loggedInEl) loggedInEl.style.display = 'none';
-    }
-
-    function showLoggedIn(displayName) {
-      if (loggedOutEl) loggedOutEl.style.display = 'none';
-      if (loggedInEl) loggedInEl.style.display = '';
-      if (emailEl) emailEl.textContent = displayName;
-    }
-
-    if (token) {
-      fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
-        .then(function (r) { if (!r.ok) throw new Error('invalid'); return r.json(); })
-        .then(function (data) {
-          var displayName = data.first_name ? (data.first_name + (data.last_name ? ' ' + data.last_name : '')) : data.email;
-          showLoggedIn(displayName);
-        })
-        .catch(function () {
-          try { localStorage.removeItem('mcpify_token'); } catch (e) {}
-          showLoggedOut();
-        });
-    } else {
-      showLoggedOut();
-    }
-
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        try { localStorage.removeItem('mcpify_token'); } catch (err) {}
-        window.location.href = '/';
-      });
-    }
-  })();
-</script>
