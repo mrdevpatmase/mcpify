@@ -81,10 +81,16 @@ pip install -r requirements.txt
 ```bash
 cp .env.example .env
 ```
-Edit `.env`:
+At minimum, set:
 ```env
 APP_URL=http://localhost:10000
 ```
+
+**Running without a database:** `DATABASE_URL`, `JWT_SECRET_KEY`, etc. are all optional for local dev - `/analyze`, `/generate`, `/guide`, and the MCP tools work fine without them (no signup/login required historically; they now gate behind auth in production - see note below). Only signup/login/dashboard/admin-ads/GA endpoints need a real Postgres connection. The test suite (`pytest`) never needs any of this either.
+
+**Getting real values (teammates with Railway access):** this project deploys from Railway, not the `render.yaml` below (that's legacy from before the move). There's no committed `.env` - env vars live in Railway's dashboard. If you need to run against the same DB/Redis/GA/Cloudinary the production deploy uses: Railway project → **Variables** tab → copy each value into your local `.env`. Don't commit `.env` or paste these values into chat/commits - `.env` is already gitignored.
+
+**Note:** `/analyze`, `/generate`, and `/guide` currently require a logged-in user (`Authorization: Bearer <jwt>`) even in this local setup, so without `DATABASE_URL` + `JWT_SECRET_KEY` configured you can exercise the analyzer/generator logic directly via `app/analyzer.py`'s functions or the MCP tools in `app/mcp_handler.py`, but not the REST endpoints end-to-end.
 
 ### 5. Run the Server
 ```bash
@@ -96,9 +102,14 @@ uvicorn main:app --host 0.0.0.0 --port 10000 --reload
 
 ---
 
-## 🚢 Deploying to Render
+## 🚢 Deployment
 
-This project includes a preconfigured `render.yaml` for 1-click deployment on Render's free tier.
+**Current production: Railway.** The repo has no `railway.json`/`railway.toml` - Railway auto-detects the Python app from `requirements.txt` and runs `uvicorn main:app`. To deploy your own instance: create a Railway project, connect this repo, add a Postgres database (or point `DATABASE_URL` at Neon/any provider), and set the env vars from `.env.example` in Railway's **Variables** tab.
+
+<details>
+<summary>Legacy: Deploying to Render (render.yaml still present, unused in production)</summary>
+
+This project includes a `render.yaml` for 1-click deployment on Render's free tier, kept for anyone who prefers Render over Railway - not what the live deployment actually runs on.
 
 1. Push this repository to GitHub or GitLab.
 2. Log into [Render Dashboard](https://dashboard.render.com/).
@@ -106,6 +117,8 @@ This project includes a preconfigured `render.yaml` for 1-click deployment on Re
 4. Connect your repository.
 5. Set `APP_URL` in the environment variables to your assigned Render URL (e.g. `https://mcpify.onrender.com`).
 6. Deploy! The built-in APScheduler will automatically keep your service awake.
+
+</details>
 
 ---
 
