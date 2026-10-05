@@ -1,3 +1,4 @@
+import hashlib
 from datetime import datetime, timezone
 from typing import Optional, Tuple
 
@@ -159,13 +160,38 @@ async def create_ad(
 @router.get("/ads/{ad_id}/media", summary="Get an Ad's Uploaded Image/Video")
 @limiter.limit("120/minute")
 async def get_ad_media(request: Request, ad_id: str):
+    """
+    Every view of a rotating/modal ad on the landing page hits this
+    endpoint, and it was serving the blob straight out of Postgres with
+    no caching at all - no Cache-Control, no ETag - so a browser
+    re-fetched the full image/video from the DB on every single page
+    load, even for an ad it had already rendered seconds earlier. That
+    turns the database into a repeatedly-re-queried file server and
+    burns through a managed Postgres provider's data-transfer quota
+    fast under real traffic (confirmed live: Neon's free-tier monthly
+    network transfer allowance got fully exhausted). An ETag (content
+    hash, so it only changes if the admin actually replaces the media)
+    plus a day-long max-age lets the browser skip the request entirely
+    on repeat views within that window, and cuts a revalidation down to
+    a tiny 304 instead of re-transferring the whole blob when the
+    browser does check back.
+    """
     session_factory = get_session_factory()
     async with session_factory() as db:
         result = await db.execute(select(Ad).where(Ad.id == ad_id))
         ad = result.scalar_one_or_none()
     if not ad or not ad.media_data:
         raise HTTPException(status_code=404, detail="No media for this ad.")
-    return Response(content=ad.media_data, media_type=ad.media_content_type or "application/octet-stream")
+
+    etag = hashlib.md5(ad.media_data).hexdigest()
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304)
+
+    return Response(
+        content=ad.media_data,
+        media_type=ad.media_content_type or "application/octet-stream",
+        headers={"Cache-Control": "public, max-age=86400", "ETag": etag},
+    )
 
 
 @router.get("/admin/ads", summary="List All Ads")
