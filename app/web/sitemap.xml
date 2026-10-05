@@ -1,31 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://inc42.si/</loc>
+    <loc>https://mcpify.aikart.co/</loc>
     <lastmod>2026-09-28</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.00</priority>
   </url>
   <url>
-    <loc>https://inc42.si/login</loc>
+    <loc>https://mcpify.aikart.co/login</loc>
     <lastmod>2026-09-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.60</priority>
   </url>
   <url>
-    <loc>https://inc42.si/signup</loc>
+    <loc>https://mcpify.aikart.co/signup</loc>
     <lastmod>2026-09-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>
   </url>
   <url>
-    <loc>https://inc42.si/llms.txt</loc>
+    <loc>https://mcpify.aikart.co/llms.txt</loc>
     <lastmod>2026-10-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.80</priority>
   </url>
   <url>
-    <loc>https://inc42.si/pricing</loc>
+    <loc>https://mcpify.aikart.co/pricing</loc>
     <lastmod>2026-10-03</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>

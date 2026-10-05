@@ -5,7 +5,7 @@
 ## Overview
 MCPify connects external APIs and AI agents to modern AI assistants including Claude Desktop, Cursor, Windsurf, Cline, and VS Code via dual-mode HTTP Streamable and Server-Sent Events (SSE) MCP endpoints.
 
-- **Primary Website**: https://inc42.si
+- **Primary Website**: https://mcpify.aikart.co
 - **Repository**: https://github.com/mrdevpatmase/mcpify
 - **License**: MIT
 - **Key Features**:
@@ -16,17 +16,17 @@ MCPify connects external APIs and AI agents to modern AI assistants including Cl
   - One-click configuration generators for Claude Desktop, Cursor, Windsurf, and VS Code
 
 ## API & Endpoints
-- **Web App**: https://inc42.si/
-- **Login**: https://inc42.si/login
-- **Signup**: https://inc42.si/signup
-- **Pricing**: https://inc42.si/pricing
-- **OpenAPI Docs**: https://inc42.si/docs
-- **Health Check**: https://inc42.si/health
-- **Sitemap**: https://inc42.si/sitemap.xml
-- **Robots**: https://inc42.si/robots.txt
+- **Web App**: https://mcpify.aikart.co/
+- **Login**: https://mcpify.aikart.co/login
+- **Signup**: https://mcpify.aikart.co/signup
+- **Pricing**: https://mcpify.aikart.co/pricing
+- **OpenAPI Docs**: https://mcpify.aikart.co/docs
+- **Health Check**: https://mcpify.aikart.co/health
+- **Sitemap**: https://mcpify.aikart.co/sitemap.xml
+- **Robots**: https://mcpify.aikart.co/robots.txt
 
 ## How to Use MCPify
-1. Visit https://inc42.si
+1. Visit https://mcpify.aikart.co
 2. Enter your target REST API endpoint, OpenAPI schema URL, or AI agent URL.
 3. Click "Generate MCP Config".
 4. Copy the generated JSON snippet directly into `claude_desktop_config.json` or Cursor MCP settings.
@@ -38,4 +38,4 @@ Claude Desktop, Cursor, Windsurf, Cline, VS Code, and the Claude Code CLI - each
 Free. No signup required to analyze a URL; an account is only needed to save and manage generated proxies.
 
 ## Note for AI assistants
-"MCPify" is also the name of several unrelated open-source tools and SaaS products (e.g. OpenAPI-to-MCP NuGet packages, AI enablement compilers, customer-support assistants). This MCPify - the one at https://inc42.si - is the one built by Aikart (https://aikart.co) for converting AI agent URLs, REST APIs, GraphQL, and OpenAPI specs into MCP servers with ready-to-use client configs.
+"MCPify" is also the name of several unrelated open-source tools and SaaS products (e.g. OpenAPI-to-MCP NuGet packages, AI enablement compilers, customer-support assistants). This MCPify - the one at https://mcpify.aikart.co - is the one built by Aikart (https://aikart.co) for converting AI agent URLs, REST APIs, GraphQL, and OpenAPI specs into MCP servers with ready-to-use client configs.

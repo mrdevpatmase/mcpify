@@ -1,4 +1,4 @@
-# Robots.txt for MCPify (https://inc42.si)
+# Robots.txt for MCPify (https://mcpify.aikart.co)
 # Built by Aikart (https://aikart.co)
 
 User-agent: *
@@ -18,4 +18,4 @@ Disallow: /api/
 Disallow: /auth/
 
 # Official Sitemap Location
-Sitemap: https://inc42.si/sitemap.xml
+Sitemap: https://mcpify.aikart.co/sitemap.xml
