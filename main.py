@@ -352,7 +352,7 @@ def render_web_page(page: str = "index.html") -> HTMLResponse:
 
     app_url = os.getenv("APP_URL", "").rstrip("/")
     if app_url:
-        content = content.replace("https://mcpify.aikart.co", app_url)
+        content = content.replace("https://inc42.si", app_url)
 
     return HTMLResponse(content)
 
@@ -373,7 +373,7 @@ async def sitemap_xml():
             content = f.read().strip()
         app_url = os.getenv("APP_URL", "").rstrip("/")
         if app_url:
-            content = content.replace("https://mcpify.aikart.co", app_url)
+            content = content.replace("https://inc42.si", app_url)
         return Response(content=content, media_type="application/xml; charset=utf-8")
     raise HTTPException(status_code=404, detail="sitemap.xml not found")
 
@@ -388,7 +388,7 @@ async def robots_txt():
             content = f.read()
         app_url = os.getenv("APP_URL", "").rstrip("/")
         if app_url:
-            content = content.replace("https://mcpify.aikart.co", app_url)
+            content = content.replace("https://inc42.si", app_url)
         return Response(content=content, media_type="text/plain")
     raise HTTPException(status_code=404, detail="robots.txt not found")
 
@@ -404,7 +404,7 @@ async def llms_txt():
             content = f.read()
         app_url = os.getenv("APP_URL", "").rstrip("/")
         if app_url:
-            content = content.replace("https://mcpify.aikart.co", app_url)
+            content = content.replace("https://inc42.si", app_url)
         return Response(content=content, media_type="text/markdown; charset=utf-8")
     raise HTTPException(status_code=404, detail="llms.txt not found")
 

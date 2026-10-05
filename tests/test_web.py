@@ -68,23 +68,23 @@ def test_sitemap_xml():
     response = client.get("/sitemap.xml")
     assert response.status_code == 200
     assert "xml" in response.headers["content-type"]
-    assert "https://mcpify.aikart.co/" in response.text
+    assert "https://inc42.si/" in response.text
 
 def test_robots_txt():
     response = client.get("/robots.txt")
     assert response.status_code == 200
     assert "text/plain" in response.headers["content-type"]
     assert "User-agent: *" in response.text
-    assert "Sitemap: https://mcpify.aikart.co/sitemap.xml" in response.text
+    assert "Sitemap: https://inc42.si/sitemap.xml" in response.text
 
 def test_llms_txt():
     response = client.get("/llms.txt")
     assert response.status_code == 200
     assert "text/markdown" in response.headers["content-type"]
-    assert "https://mcpify.aikart.co" in response.text
+    assert "https://inc42.si" in response.text
 
     well_known = client.get("/.well-known/llms.txt")
     assert well_known.status_code == 200
-    assert "https://mcpify.aikart.co" in well_known.text
+    assert "https://inc42.si" in well_known.text
 
 
