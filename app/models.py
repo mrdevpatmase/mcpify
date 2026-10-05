@@ -49,13 +49,27 @@ class Ad(Base):
     end_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     impressions: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     clicks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    # An uploaded image or short (5-10s) video, stored directly in
-    # Postgres rather than a file store/object storage - simplest option
-    # that doesn't need Railway Volumes or an S3-style account set up,
-    # workable because ad creatives are small and few (an admin-managed
-    # handful of ads, not user-generated uploads at scale).
+    # An uploaded image or short (5-10s) video. Originally stored
+    # directly in Postgres (media_data) - simplest option at the time,
+    # but serving a multi-MB blob out of the primary database on every
+    # single ad view (no CDN, no caching) burned through a managed
+    # Postgres provider's data-transfer quota fast once real traffic
+    # showed up (confirmed live: Neon's free-tier allowance got fully
+    # exhausted). New uploads now go to Cloudinary instead
+    # (media_url/media_public_id) when CLOUDINARY_* env vars are set -
+    # media_data/media_content_type stay around read-only for ads
+    # created before this migration, still served via
+    # GET /ads/{id}/media. media_content_type is also set for
+    # Cloudinary-stored media (needed to tell image vs video apart,
+    # and to pick the right resource_type when deleting), so it isn't
+    # exclusively a "legacy" field.
     media_data: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     media_content_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    media_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    # Cloudinary's own asset id - needed to delete the asset later
+    # (ad deleted, or its media replaced); without storing this, there
+    # would be no way to find and remove the orphaned file afterward.
+    media_public_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     # Which page/slot this ad shows in - see app/ads_routes.py's
     # AD_PLACEMENTS for the fixed list. NOT NULL with a DB-level DEFAULT
     # (not just a Python-side one) so the ALTER TABLE that adds this to

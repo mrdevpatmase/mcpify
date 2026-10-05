@@ -7,6 +7,7 @@ from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 
+from app.cloud_storage import delete_media, is_configured as cloudinary_configured, upload_media
 from app.db import get_db, get_session_factory
 from app.models import Ad
 from app.rate_limit import limiter
@@ -57,6 +58,34 @@ async def _read_media(media: Optional[UploadFile]) -> Tuple[Optional[bytes], Opt
     return data, content_type
 
 
+async def _store_media(media_data: Optional[bytes], media_content_type: Optional[str]) -> dict:
+    """
+    Uploads to Cloudinary when configured, or falls back to returning
+    the raw bytes for the caller to store in Postgres directly (the
+    original behavior, kept for any deployment that hasn't set
+    CLOUDINARY_* env vars yet). Returns the four Ad media fields as a
+    dict so both create_ad and replace_ad_media can just
+    `**_store_media(...)` instead of duplicating this branch.
+    """
+    if media_data is None:
+        return {"media_data": None, "media_content_type": None, "media_url": None, "media_public_id": None}
+    if cloudinary_configured():
+        url, public_id = await upload_media(media_data, media_content_type)
+        return {"media_data": None, "media_content_type": media_content_type, "media_url": url, "media_public_id": public_id}
+    return {"media_data": media_data, "media_content_type": media_content_type, "media_url": None, "media_public_id": None}
+
+
+async def _delete_media_if_cloud_stored(ad: Ad) -> None:
+    """Best-effort Cloudinary cleanup before an ad's media is replaced
+    or the ad itself is deleted - never raises, so a storage-provider
+    hiccup can't block the actual delete/replace the admin asked for."""
+    if ad.media_public_id:
+        try:
+            await delete_media(ad.media_public_id, ad.media_content_type or "")
+        except Exception:
+            pass
+
+
 class UpdateAdRequest(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     link_url: Optional[str] = Field(None, min_length=1, max_length=1000)
@@ -73,11 +102,12 @@ def _serialize(ad: Ad) -> dict:
         "id": ad.id,
         "title": ad.title,
         # image_url: legacy external-link path, kept for ads created
-        # before upload existed. media_url: the new upload path, served
-        # from this ad's own row via GET /ads/{id}/media - never the
-        # raw bytes themselves in this JSON.
+        # before upload existed. media_url: a direct Cloudinary CDN link
+        # for ads uploaded after that migration, or (for ads still on
+        # the old DB-blob path) this ad's own GET /ads/{id}/media route -
+        # never the raw bytes themselves in this JSON either way.
         "image_url": ad.image_url,
-        "media_url": f"/ads/{ad.id}/media" if ad.media_data else None,
+        "media_url": ad.media_url or (f"/ads/{ad.id}/media" if ad.media_data else None),
         "media_content_type": ad.media_content_type,
         "link_url": ad.link_url,
         "description": ad.description,
@@ -149,8 +179,7 @@ async def create_ad(
         placement=placement,
         start_date=parsed_start,
         end_date=parsed_end,
-        media_data=media_data,
-        media_content_type=media_content_type,
+        **(await _store_media(media_data, media_content_type)),
     )
     db.add(ad)
     await db.commit()
@@ -247,8 +276,10 @@ async def replace_ad_media(
     media_data, media_content_type = await _read_media(media)
     if media_data is None:
         raise HTTPException(status_code=400, detail="No media file provided.")
-    ad.media_data = media_data
-    ad.media_content_type = media_content_type
+
+    await _delete_media_if_cloud_stored(ad)
+    for field, value in (await _store_media(media_data, media_content_type)).items():
+        setattr(ad, field, value)
     await db.commit()
     return _serialize(ad)
 
@@ -260,6 +291,7 @@ async def delete_ad(request: Request, ad_id: str, _admin: Optional[str] = Depend
     ad = result.scalar_one_or_none()
     if not ad:
         raise HTTPException(status_code=404, detail=f"Ad '{ad_id}' not found.")
+    await _delete_media_if_cloud_stored(ad)
     await db.delete(ad)
     await db.commit()
     return {"deleted": True, "id": ad_id}
