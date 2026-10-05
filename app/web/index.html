@@ -1634,16 +1634,16 @@
                   Detected and connected directly, no proxy needed. Streamable HTTP and SSE are both supported.
                 </li>
                 <li class="nude-feature-item">
-                  <strong>Public REST APIs</strong>
-                  Wrapped into MCP tools automatically: call_api, get_info and health_check.
+                  <strong>REST &amp; GraphQL APIs</strong>
+                  Wrapped into MCP tools automatically - a named tool per endpoint when an OpenAPI spec is found, a schema-introspected graphql_query tool for GraphQL, or generic call_api/get_info/health_check otherwise.
                 </li>
                 <li class="nude-feature-item">
                   <strong>APIs hosted under a path</strong>
                   For example api.example.com/v1 or example.com/api.
                 </li>
                 <li class="nude-feature-item">
-                  <strong>APIs with a Bearer token</strong>
-                  Pass your API key and it is forwarded on every call.
+                  <strong>APIs with a Bearer or custom-header key</strong>
+                  Pass your API key - sent as Authorization: Bearer, or under the spec's own declared header name (e.g. X-API-KEY) when it has one.
                 </li>
               </ul>
             </div>
@@ -1658,6 +1658,8 @@
                 <button type="button" class="nude-chip"
                   onclick="tryExample('https://jsonplaceholder.typicode.com')">jsonplaceholder</button>
                 <button type="button" class="nude-chip" onclick="tryExample('https://dog.ceo/api')">dog.ceo/api</button>
+                <button type="button" class="nude-chip"
+                  onclick="tryExample('https://countries.trevorblades.com')">countries.trevorblades.com (GraphQL)</button>
               </div>
             </div>
           </div>
@@ -1685,8 +1687,8 @@
                   A proxy is still created, but tool calls return no real data if there is no API behind the site.
                 </li>
                 <li class="nude-feature-item">
-                  <strong>Auth beyond a Bearer token</strong>
-                  OAuth flows, custom auth headers and cookie-based login are not supported yet.
+                  <strong>Auth beyond a simple API key</strong>
+                  OAuth2 (client credentials or a one-time login) works via the API directly, but isn't exposed in this quick form yet. Cookie-based login isn't supported at all.
                 </li>
                 <li class="nude-feature-item">
                   <strong>Slow APIs</strong>
