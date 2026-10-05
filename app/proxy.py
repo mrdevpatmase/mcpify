@@ -281,7 +281,14 @@ class ProxyMCPManager:
                 "graphql_config": graphql_config,
                 "created_at": now_str,
                 "last_used": now_str,
-                "status": "active"
+                "status": "active",
+                # Set explicitly (not just left absent) so a freshly-
+                # created proxy's JSON shape always has this key, before
+                # the APScheduler job's first health-check tick ever
+                # calls record_ping_status - a missing key and an
+                # explicit null read the same to most JSON consumers,
+                # but this keeps the shape consistent either way.
+                "last_ping_status": None,
             }
 
             # Atomic claim (SET ... NX), not a plain set after the GET
@@ -346,7 +353,8 @@ class ProxyMCPManager:
             "graphql_config": graphql_config,
             "created_at": now_str,
             "last_used": now_str,
-            "status": "active"
+            "status": "active",
+            "last_ping_status": None,
         }
         self.proxies[proxy_id] = proxy_data
         return proxy_data
