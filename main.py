@@ -510,15 +510,20 @@ async def create_proxy_endpoint(
     # OAuth-protected (Sentry, Supermetrics, Explorium's Vibe Prospecting
     # all verified live) and only answer once authenticated.
     async with httpx.AsyncClient(timeout=5.0) as client:
-        has_mcp = await verify_mcp_handshake(client, normalized_url, api_key=payload.api_key)
+        has_mcp, mcp_confidence = await verify_mcp_handshake(client, normalized_url, api_key=payload.api_key)
 
-    # No native MCP - see if the target publishes an OpenAPI/Swagger spec
-    # so the proxy can expose specific, named tools (e.g. "get_pet_by_id")
-    # instead of only the generic call_api(endpoint, method, ...) wrapper.
-    # Best-effort: falls back to None on any failure, same as has_mcp above
-    # falling back to the generic proxy.
+    # No native MCP (or only the weaker auth_required heuristic, not a
+    # confirmed JSON-RPC handshake - see verify_mcp_handshake's docstring:
+    # that heuristic produced a confirmed false positive live on
+    # gitlab.com/api/v4, an ordinary REST API) - see if the target
+    # publishes an OpenAPI/Swagger spec so the proxy can expose specific,
+    # named tools (e.g. "get_pet_by_id") instead of only the generic
+    # call_api(endpoint, method, ...) wrapper. Best-effort: falls back to
+    # None on any failure, same as has_mcp above falling back to the
+    # generic proxy.
+    needs_discovery = not has_mcp or mcp_confidence != "confirmed"
     openapi_operations = None
-    if not has_mcp:
+    if needs_discovery:
         try:
             async with httpx.AsyncClient(timeout=6.0) as client:
                 spec = await discover_openapi_spec(client, normalized_url)
@@ -533,7 +538,7 @@ async def create_proxy_endpoint(
     # discovery came up empty since a target is realistically one or the
     # other, not both.
     graphql_config = None
-    if not has_mcp and not openapi_operations:
+    if needs_discovery and not openapi_operations:
         try:
             async with httpx.AsyncClient(timeout=6.0) as client:
                 graphql_config = await discover_graphql_schema(client, normalized_url)

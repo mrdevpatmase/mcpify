@@ -50,8 +50,21 @@ async def _is_401_endpoint_specific(client: httpx.AsyncClient, base_url: str) ->
         return False
 
 
-async def verify_mcp_handshake(client: httpx.AsyncClient, base_url: str, api_key: Optional[str] = None) -> bool:
+async def verify_mcp_handshake(client: httpx.AsyncClient, base_url: str, api_key: Optional[str] = None) -> "tuple[bool, str]":
     """
+    Returns (has_mcp, confidence). confidence is "confirmed" when a real
+    JSON-RPC response body was actually seen, or "auth_required" for the
+    401+WWW-Authenticate heuristic path below - strong evidence for the
+    real OAuth-protected MCP servers it was built against (Sentry,
+    Supermetrics, Explorium), but NOT proof the endpoint is MCP
+    specifically: verified live that it also fires on gitlab.com/api/v4,
+    an ordinary REST API that 401s-with-WWW-Authenticate on /mcp for
+    unrelated reasons while the nonce probe below coincidentally 404s
+    instead of 401ing. run_analysis uses this distinction to still build
+    a working proxy fallback for the "auth_required" case, rather than
+    trusting it enough to skip the fallback entirely the way a
+    "confirmed" result does.
+
     A GET probe's status code can be fooled by a route that coincidentally
     lives at /mcp for reasons unrelated to MCP (seen in the wild: a public
     API returning 405 + "Allow: POST" at /mcp, from routing conventions in
@@ -73,16 +86,6 @@ async def verify_mcp_handshake(client: httpx.AsyncClient, base_url: str, api_key
     api_key, if given, is sent as a Bearer token - plenty of real MCP
     servers are OAuth-protected (Sentry, Supermetrics, Explorium's Vibe
     Prospecting all verified live) and need it to actually answer.
-    Without a valid key, or when none is supplied, a 401 WITH a
-    WWW-Authenticate challenge on this /mcp POST specifically (not a
-    domain-wide auth wall - verified on the same three real servers that
-    an unrelated random path 404s, not 401s, so this evidence is specific
-    to the endpoint, not "the whole site needs login") is still strong,
-    MCP-shaped evidence that this is a real MCP server that needs
-    credentials, treated as a positive result: reporting has_mcp=False
-    here would fall back to a generic REST proxy whose call_api/get_info
-    tools have no real REST API to call at all on these targets, which is
-    worse than an honest "this is MCP, but needs a key" signal.
     """
     headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
     if api_key:
@@ -105,11 +108,13 @@ async def verify_mcp_handshake(client: httpx.AsyncClient, base_url: str, api_key
             timeout=6.0,
         ) as resp:
             if resp.status_code == 401 and any(k.lower() == "www-authenticate" for k in resp.headers):
-                return await _is_401_endpoint_specific(client, base_url)
+                if await _is_401_endpoint_specific(client, base_url):
+                    return True, "auth_required"
+                return False, "no_match"
             if resp.status_code >= 400:
-                return False
+                return False, "no_match"
             if "html" in (resp.headers.get("content-type") or "").lower():
-                return False
+                return False, "no_match"
 
             body_text = ""
             try:
@@ -123,11 +128,13 @@ async def verify_mcp_handshake(client: httpx.AsyncClient, base_url: str, api_key
             except Exception:
                 pass
     except Exception:
-        return False
+        return False, "no_match"
 
     # Real MCP initialize responses are JSON-RPC: {"jsonrpc":"2.0", ...,
     # "result": {...}} (plain JSON or SSE-wrapped as "data: {...}").
-    return '"jsonrpc"' in body_text and ('"result"' in body_text or '"error"' in body_text)
+    if '"jsonrpc"' in body_text and ('"result"' in body_text or '"error"' in body_text):
+        return True, "confirmed"
+    return False, "no_match"
 
 
 async def probe_sse_endpoint(client: httpx.AsyncClient, base_url: str) -> Dict[str, Any]:
@@ -461,29 +468,37 @@ async def analyze_agent_url(
     mcp_probe = endpoint_probes.get("/mcp")
     sse_probe = endpoint_probes.get("/sse")
     has_mcp = False
+    mcp_confidence = "no_match"
     if _is_real_endpoint_signal(mcp_probe) or _looks_like_oauth_protected_mcp(mcp_probe):
         async with httpx.AsyncClient(timeout=8.0) as client:
-            has_mcp = await verify_mcp_handshake(client, normalized_url, api_key=api_key)
+            has_mcp, mcp_confidence = await verify_mcp_handshake(client, normalized_url, api_key=api_key)
     if not has_mcp:
         # No verification step exists for this path the way
         # verify_mcp_handshake verifies /mcp - _is_real_sse_mcp_signal has
         # to be strict on its own (see its docstring: generic 400/405/406
         # from an unrelated framework on github.com/sse was mistaken for
         # a real MCP server when this used the looser gate-only check).
-        has_mcp = _is_real_sse_mcp_signal(sse_probe)
+        if _is_real_sse_mcp_signal(sse_probe):
+            has_mcp = True
+            mcp_confidence = "confirmed"
 
-    if has_mcp:
-        recommended_mcp = determine_recommended_mcp_endpoint(normalized_url, endpoint_probes)
-        proxy_url = None
-        proxy_id = None
-    else:
-        # Same OpenAPI-discovery step main.py's /proxy/create does - this
-        # is the OTHER call site create_proxy() has (used by /generate,
-        # /analyze, /guide), and it was missed when that feature was first
-        # wired in, exactly the same way request/has_mcp staleness fixes
-        # missed this call site earlier in this same session. Best-effort:
-        # falls back to None on any failure.
-        openapi_operations = None
+    # Same OpenAPI-discovery step main.py's /proxy/create does - this is
+    # the OTHER call site create_proxy() has (used by /generate, /analyze,
+    # /guide), and it was missed when that feature was first wired in,
+    # exactly the same way request/has_mcp staleness fixes missed this
+    # call site earlier in this same session. Best-effort: falls back to
+    # None on any failure. Needed whenever a proxy might get built - that
+    # was always the "not has_mcp" case, and now also the "has_mcp, but
+    # only on verify_mcp_handshake's weaker auth_required heuristic" case
+    # (see that function's docstring - that heuristic produced a
+    # confirmed false positive live on gitlab.com/api/v4, an ordinary
+    # REST API, which used to get has_mcp=True with no proxy fallback at
+    # all, leaving the generated config pointed at a dead end with no
+    # recourse).
+    needs_proxy_fallback = not has_mcp or mcp_confidence != "confirmed"
+    openapi_operations = None
+    graphql_config = None
+    if needs_proxy_fallback:
         try:
             async with httpx.AsyncClient(timeout=6.0) as spec_client:
                 spec = await discover_openapi_spec(spec_client, normalized_url)
@@ -492,7 +507,6 @@ async def analyze_agent_url(
         except Exception:
             openapi_operations = None
 
-        graphql_config = None
         if not openapi_operations:
             try:
                 async with httpx.AsyncClient(timeout=6.0) as gql_client:
@@ -500,14 +514,24 @@ async def analyze_agent_url(
             except Exception:
                 graphql_config = None
 
+    if has_mcp and mcp_confidence == "confirmed":
+        recommended_mcp = determine_recommended_mcp_endpoint(normalized_url, endpoint_probes)
+        proxy_url = None
+        proxy_id = None
+    else:
         proxy = await proxy_manager.create_proxy(
-            target_url=normalized_url, has_mcp=False, api_key=api_key, request=request,
+            target_url=normalized_url, has_mcp=has_mcp, api_key=api_key, request=request,
             openapi_operations=openapi_operations, graphql_config=graphql_config,
             owner_user_id=owner_user_id,
         )
         proxy_url = proxy["proxy_url"]
         proxy_id = proxy["proxy_id"]
-        recommended_mcp = proxy_url
+        # Still report the detected native endpoint when has_mcp is true
+        # (even on the weaker heuristic) for transparency - but
+        # generate_mcp_configurations prefers proxy_url over this field
+        # whenever both are present, so the actual generated client
+        # config uses the safety-net proxy, not the unverified endpoint.
+        recommended_mcp = determine_recommended_mcp_endpoint(normalized_url, endpoint_probes) if has_mcp else proxy_url
 
     return {
         "url": normalized_url,

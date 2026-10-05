@@ -806,7 +806,14 @@ class ProxyMCPManager:
                 auth_header_name = None
                 if tool_name == "call_api":
                     endpoint = args.get("endpoint", "")
-                    if not endpoint.startswith("/"):
+                    # Only when non-empty: an empty endpoint used to become
+                    # "/" here, silently appending a trailing slash to
+                    # targets whose base URL is already the complete
+                    # resource (e.g. api.exchangerate-api.com/v4/latest/USD)
+                    # and 404ing on the appended ".../USD/" even though the
+                    # exact URL works fine directly - verified live during
+                    # a 100+-target test pass.
+                    if endpoint and not endpoint.startswith("/"):
                         endpoint = f"/{endpoint}"
                     http_method = args.get("method", "GET").upper()
                     query_params = args.get("params")
