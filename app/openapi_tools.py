@@ -95,6 +95,27 @@ def _json_type_for(schema: Dict[str, Any]) -> str:
     return schema.get("type") or "string"
 
 
+def _resolve_ref(spec: Dict[str, Any], ref: Any) -> Optional[Dict[str, Any]]:
+    """
+    Resolves a local OpenAPI $ref ("#/components/parameters/petId") against
+    the full spec document. Real specs commonly share a parameter
+    definition this way instead of repeating it inline on every operation
+    that uses it (verified against GitHub's public spec) - without this,
+    a parameter entry like {"$ref": "..."} has no "in" key at all, so it
+    silently fell through both the path/query branches below and the
+    parameter was just lost. Only local (#/...) refs are handled - an
+    external-file $ref is out of scope for a best-effort discovery step.
+    """
+    if not isinstance(ref, str) or not ref.startswith("#/"):
+        return None
+    node: Any = spec
+    for part in ref[2:].split("/"):
+        if not isinstance(node, dict) or part not in node:
+            return None
+        node = node[part]
+    return node if isinstance(node, dict) else None
+
+
 def resolve_auth_header_name(spec: Dict[str, Any]) -> Optional[str]:
     """
     Not every real API takes its key as "Authorization: Bearer <key>" -
@@ -208,6 +229,15 @@ def parse_operations(spec: Dict[str, Any], base_url: str) -> List[Dict[str, Any]
     for path_template, methods in ordered_paths:
         if not isinstance(methods, dict):
             continue
+        # OpenAPI allows "parameters" declared once on the path item,
+        # applying to every method under it (e.g. a {petId} path param
+        # shared by GET/PUT/DELETE on the same path) - the method loop
+        # below only ever read op["parameters"] (operation-level), so a
+        # path declared this way lost every one of its parameters on
+        # every method, not just occasionally.
+        path_level_params = methods.get("parameters")
+        if not isinstance(path_level_params, list):
+            path_level_params = []
         for method, op in methods.items():
             if method.lower() not in ("get", "post", "put", "patch", "delete"):
                 continue
@@ -228,24 +258,42 @@ def parse_operations(spec: Dict[str, Any], base_url: str) -> List[Dict[str, Any]
 
             description = op.get("summary") or op.get("description") or f"{method.upper()} {path_template}"
 
-            path_params, query_params = [], []
-            for param in op.get("parameters", []):
+            # Path-level params first, operation-level second: when both
+            # declare the same (name, in) pair, the operation-level one
+            # should win (OpenAPI's own override rule), and processing it
+            # second means it simply overwrites the same dict key below.
+            own_params = op.get("parameters")
+            if not isinstance(own_params, list):
+                own_params = []
+            merged_params: Dict[tuple, Dict[str, Any]] = {}
+            for param in path_level_params + own_params:
                 if not isinstance(param, dict):
                     continue
+                if "$ref" in param:
+                    param = _resolve_ref(spec, param["$ref"])
+                    if not param:
+                        continue
                 location = param.get("in")
+                if location not in ("path", "query"):
+                    # header/cookie params intentionally not exposed as
+                    # tool arguments - api_key auth is already handled
+                    # uniformly via the proxy's own Bearer-token
+                    # forwarding.
+                    continue
+                merged_params[(param.get("name"), location)] = param
+
+            path_params, query_params = [], []
+            for (name, location), param in merged_params.items():
                 entry = {
-                    "name": param.get("name"),
+                    "name": name,
                     "required": bool(param.get("required")),
                     "description": param.get("description") or "",
                     "type": _json_type_for(param.get("schema", {})),
                 }
                 if location == "path":
                     path_params.append(entry)
-                elif location == "query":
+                else:
                     query_params.append(entry)
-                # header/cookie params intentionally not exposed as tool
-                # arguments - api_key auth is already handled uniformly via
-                # the proxy's own Bearer-token forwarding.
 
             has_body = "requestBody" in op and method.lower() in ("post", "put", "patch")
 
