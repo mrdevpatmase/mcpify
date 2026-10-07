@@ -1452,14 +1452,14 @@
        and is only dismissed via its own close button - clicking the
        backdrop itself does nothing, by design (see loadCenterModal). -->
   <div id="adModalBackdrop" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.6); z-index:2000; align-items:center; justify-content:center; padding:20px;">
-    <div style="position:relative; background:#FFFFFF; border-radius:var(--radius-35); width:fit-content; max-width:460px; min-width:260px; padding:20px; box-shadow:0 30px 70px -10px rgba(0,0,0,0.4); text-align:center;">
+    <div style="position:relative; background:#FFFFFF; border-radius:var(--radius-35); width:fit-content; max-width:460px; min-width:260px; padding:12px; box-shadow:0 30px 70px -10px rgba(0,0,0,0.4); text-align:center;">
       <button type="button" id="adModalCloseBtn" aria-label="Close ad"
-        style="position:absolute; top:12px; right:12px; width:30px; height:30px; border-radius:50%; border:1px solid var(--border-subtle); background:#FFFFFF; color:var(--text-muted); font-size:1.05rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;">&times;</button>
-      <span style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim);">Sponsored</span>
-      <a id="adModalLink" href="#" target="_blank" rel="noopener sponsored" style="display:block; text-decoration:none; color:inherit; margin-top:10px;">
-        <img id="adModalImage" src="" alt="" style="max-width:100%; max-height:300px; width:auto; height:auto; object-fit:contain; border-radius:var(--radius-md); display:none; margin:0 auto 10px;" />
+        style="position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:50%; border:1px solid var(--border-subtle); background:#FFFFFF; color:var(--text-muted); font-size:0.95rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:1;">&times;</button>
+      <span style="font-size:0.64rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim);">Sponsored</span>
+      <a id="adModalLink" href="#" target="_blank" rel="noopener sponsored" style="display:block; text-decoration:none; color:inherit; margin-top:4px;">
+        <img id="adModalImage" src="" alt="" style="max-width:100%; max-height:300px; width:auto; height:auto; object-fit:contain; border-radius:var(--radius-md); display:none; margin:0 auto 6px;" />
         <video id="adModalVideo" muted loop autoplay playsinline
-          style="max-width:100%; max-height:300px; width:auto; height:auto; object-fit:contain; border-radius:var(--radius-md); display:none; margin:0 auto 10px;"></video>
+          style="max-width:100%; max-height:300px; width:auto; height:auto; object-fit:contain; border-radius:var(--radius-md); display:none; margin:0 auto 6px;"></video>
         <div id="adModalTitle" style="font-size:1.2rem; font-weight:800; color:#111827;"></div>
         <div id="adModalDescription" style="font-size:0.9rem; color:var(--text-muted); margin-top:6px;"></div>
       </a>
